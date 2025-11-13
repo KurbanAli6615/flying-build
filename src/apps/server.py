@@ -4,8 +4,8 @@ from fastapi.responses import JSONResponse
 from fastapi_limiter.depends import RateLimiter
 
 import constants
-from apps.admin.controllers import admin_user_router
 from apps.handlers import start_exception_handlers
+from core.data_encrypt.controller import data_decrypt_router
 from apps.user.controllers import user_router
 from config import AppEnvironment, settings
 from constants.config import rate_limiter_config
@@ -30,11 +30,11 @@ def init_routers(_app: FastAPI) -> None:
             )
         ]
     )
-
+    base_router.include_router(data_decrypt_router)
     base_router.include_router(user_router)
-    base_router.include_router(admin_user_router)
 
-    _app.include_router(base_router, responses={422: {"model": BaseValidationResponse}})
+    _app.include_router(base_router, responses={
+                        422: {"model": BaseValidationResponse}})
 
 
 def root_health_path(_app: FastAPI) -> None:
@@ -54,7 +54,8 @@ def root_health_path(_app: FastAPI) -> None:
             JSONResponse: A JSON response with a success message.
         """
         return JSONResponse(
-            status_code=status.HTTP_200_OK, content={"message": constants.SUCCESS}
+            status_code=status.HTTP_200_OK, content={
+                "message": constants.SUCCESS}
         )
 
     @_app.get("/healthcheck", include_in_schema=False)
@@ -66,7 +67,8 @@ def root_health_path(_app: FastAPI) -> None:
             JSONResponse: A JSON response with a success message.
         """
         return JSONResponse(
-            status_code=status.HTTP_200_OK, content={"message": constants.SUCCESS}
+            status_code=status.HTTP_200_OK, content={
+                "message": constants.SUCCESS}
         )
 
 

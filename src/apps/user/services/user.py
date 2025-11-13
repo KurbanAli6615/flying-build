@@ -17,14 +17,12 @@ from apps.user.models.user import UserModel
 from core.common_helpers import (
     create_tokens,
     decrypt,
-    validate_email,
     validate_input_fields,
 )
 from core.db import db_session
 from core.exceptions import BadRequestError
 from core.types import RoleType
 from core.utils.hashing import hash_password, verify_password
-from constants.config import PAYLOAD_TIMEOUT
 
 
 class UserService:
