@@ -26,8 +26,7 @@ async def decrypt_data_handler(
     Decrypt data using RSA and AES.
     """
     res = await service.decrypt_data_admin(request=request, encrypted_request=body)
-    data = {"status": constants.SUCCESS,
-            "code": status.HTTP_200_OK, "data": res}
+    data = {"status": constants.SUCCESS, "code": status.HTTP_200_OK, "data": res}
     response = JSONResponse(content=data)
     return response
 

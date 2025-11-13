@@ -30,8 +30,7 @@ async def lifespan(app):
     with open(settings.PRIVATE_PUBLIC_KEY_PATH, "rb") as private_key_file:
         private_key_data = private_key_file.read()
     app.state.rsa_key = serialization.load_pem_private_key(
-        private_key_data,
-        password=None  # Set password if your key is encrypted
+        private_key_data, password=None  # Set password if your key is encrypted
     )
 
     logger.info("starting scheduler")
@@ -39,4 +38,3 @@ async def lifespan(app):
     scheduler.start()
     await FastAPILimiter.init(redis)
     yield
-    

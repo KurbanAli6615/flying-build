@@ -57,7 +57,6 @@ class Settings(BaseSettings):
     PRIVATE_PUBLIC_KEY_PATH: str | None = os.getenv("PRIVATE_PUBLIC_KEY_PATH")
     PUBLIC_KEY_PATH: str | None = os.getenv("PUBLIC_KEY_PATH")
 
-
     @field_validator("DATABASE_URL", mode="before")
     def assemble_db_url(cls, val, values) -> str:
         """

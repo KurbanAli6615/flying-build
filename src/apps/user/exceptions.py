@@ -1,5 +1,11 @@
 import constants
-from core.exceptions import CustomException, NotFoundError, UnauthorizedError, UnprocessableEntityError, BadRequestError
+from core.exceptions import (
+    BadRequestError,
+    CustomException,
+    NotFoundError,
+    UnauthorizedError,
+    UnprocessableEntityError,
+)
 
 
 class DuplicateEmailException(CustomException):
@@ -41,12 +47,14 @@ class InvalidEncryptedData(BadRequestError):
 
     message = constants.INVALID_ENCRYPTED_DATA
 
+
 class WeakPasswordException(BadRequestError):
     """
     Custom exception for User already assigned error.
     """
 
     message = constants.WEAK_PASSWORD
+
 
 class InvalidPhoneFormatException(BadRequestError):
     """
@@ -55,12 +63,14 @@ class InvalidPhoneFormatException(BadRequestError):
 
     message = constants.INVALID_PHONE_NUMBER
 
+
 class InvalidEmailException(BadRequestError):
     """
     Custom exception for invalid email.
     """
 
     message = constants.INVALID_EMAIL
+
 
 class InvalidRequestException(BadRequestError):
     """

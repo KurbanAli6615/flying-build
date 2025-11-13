@@ -1,18 +1,16 @@
 import base64
+import json
 import re
 import secrets
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding as crypto_padding
 from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
-from cryptography.hazmat.backends import default_backend
-from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from pydantic import EmailStr
-from sqlalchemy.sql.operators import json_getitem_op
 
 import constants
 from apps.user.exceptions import (
@@ -28,8 +26,6 @@ from core.auth import access, admin_access, admin_refresh, refresh
 from core.exceptions import InvalidRoleException
 from core.types import RoleType
 from core.utils import strong_password
-from datetime import datetime, timedelta,timezone
-import json
 
 
 async def create_password():
@@ -83,8 +79,14 @@ def validate_string_fields(values) -> dict:
             )
     return values
 
+
 async def decrypt(
-    rsa_key: rsa.RSAPrivateKey, enc_data: str, encrypt_key: str, iv_input: str, time_check: bool = False, timeout: int = 5
+    rsa_key: rsa.RSAPrivateKey,
+    enc_data: str,
+    encrypt_key: str,
+    iv_input: str,
+    time_check: bool = False,
+    timeout: int = 5,
 ) -> bytes:
     """Decrypts the given encrypted data.
 
@@ -98,17 +100,14 @@ async def decrypt(
     try:
         code_bytes = encrypt_key.encode("UTF-8")
         encoded_by = base64.b64decode(code_bytes)
-        decrypted_key = rsa_key.decrypt(
-            encoded_by,
-            asym_padding.PKCS1v15()
-        ).decode()
+        decrypted_key = rsa_key.decrypt(encoded_by, asym_padding.PKCS1v15()).decode()
 
         iv = base64.b64decode(iv_input)
         enc = base64.b64decode(enc_data)
         cipher = Cipher(
             algorithms.AES(decrypted_key.encode("utf-8")),
             modes.CBC(iv),
-            backend=default_backend()
+            backend=default_backend(),
         )
         decryptor = cipher.decryptor()
         padded_plaintext = decryptor.update(enc) + decryptor.finalize()

@@ -14,11 +14,7 @@ from apps.user.exceptions import (
     UserNotFoundException,
 )
 from apps.user.models.user import UserModel
-from core.common_helpers import (
-    create_tokens,
-    decrypt,
-    validate_input_fields,
-)
+from core.common_helpers import create_tokens, decrypt, validate_input_fields
 from core.db import db_session
 from core.exceptions import BadRequestError
 from core.types import RoleType
@@ -89,7 +85,7 @@ class UserService:
             encrypt_key=encrypted_key,
             iv_input=iv,
             time_check=True,
-            timeout=constants.PAYLOAD_TIMEOUT
+            timeout=constants.PAYLOAD_TIMEOUT,
         )
         decrypted_data = json.loads(decrypted_data)
 
@@ -140,7 +136,7 @@ class UserService:
             rsa_key=request.app.state.rsa_key,
             enc_data=encrypted_data,
             encrypt_key=encrypted_key,
-            iv_input=iv
+            iv_input=iv,
         )
         decrypted_data = json.loads(decrypted_data)
 

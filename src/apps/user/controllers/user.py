@@ -6,10 +6,10 @@ from fastapi.responses import JSONResponse
 
 import constants
 from apps import UserModel
-from core.data_encrypt.schemas import EncryptedRequest
 from apps.user.schemas import BaseUserResponse
 from apps.user.services import UserService
 from core.auth import HasPermission
+from core.data_encrypt.schemas import EncryptedRequest
 from core.types import RoleType
 from core.utils.schema import BaseResponse
 from core.utils.set_cookies import set_auth_cookies
@@ -42,8 +42,7 @@ async def sign_in(
 
     res = await service.login_user(request=request, **body.model_dump())
     if "access_token" in res and res.get("access_token"):
-        data = {"status": constants.SUCCESS,
-                "code": status.HTTP_200_OK, "data": res}
+        data = {"status": constants.SUCCESS, "code": status.HTTP_200_OK, "data": res}
         response = JSONResponse(content=data)
         return set_auth_cookies(response, res, RoleType.USER)
 
