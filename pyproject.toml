@@ -1,0 +1,51 @@
+[tool.poetry]
+name = "Flying Build"
+version = "0.0.1"
+description = ""
+authors = ["Mohammadali Godad <mohammadaligodad304@gmail.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.111.0"
+sqlalchemy = { extras = ["postgresql-asyncpg"], version = "^2.0.30" }
+alembic = "^1.13.1"
+fastapi-pagination = "^0.12.13"
+fastapi-redis-cache = "^0.2.5"
+pydantic-settings = "^2.3.3"
+pyjwt = "^2.6.0"
+passlib = "^1.7.4"
+httpx = "^0.27.0"
+apscheduler = "^3.10.1"
+uvicorn = { extras = ["standard"], version = "^0.30.1" }
+pydantic-extra-types = "^2.8.2"
+fastapi-limiter = "^0.1.6"
+asyncmy = "^0.2.9"
+pytz = "^2025.2"
+cryptography = "^46.0.3"
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.4.2"
+pre-commit = "^3.7.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.isort]
+profile = "black"
+
+[tool.black]
+skip-magic-trailing-comma = true
+verbose = true
+
+[tool.ruff]
+line-length = 89
+
+[tool.interrogate]
+ignore-module = true
+ignore-init-method = true
+ignore-init-module = true
+fail-under = 100
+verbose = 2

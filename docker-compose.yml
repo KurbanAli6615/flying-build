@@ -1,0 +1,68 @@
+services:
+  postgresql:
+    image: "postgres:alpine3.19"
+    container_name: "${NAME}-postgresql"
+    env_file:
+      - .env
+    environment:
+      - "POSTGRES_USER=${DATABASE_USER}"
+      - "POSTGRES_PASSWORD=${DATABASE_PASSWORD}"
+      - "POSTGRES_DB=${DATABASE_NAME}"
+    volumes:
+      - postgresql:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - default
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME} -h localhost -p 5432",
+        ]
+      start_period: 5s
+      interval: 10s
+      timeout: 5s
+
+  pgadmin:
+    container_name: "${NAME}-pgadmin"
+    image: dpage/pgadmin4:8.5
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@admin.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    env_file:
+      - .env
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+    networks:
+      - default
+
+  redis-cache:
+    image: redis:alpine3.19
+    hostname: redis-cache
+    container_name: "${NAME}-redis-cache"
+    restart: on-failure
+    ports:
+      - "6380:6379"
+    command: redis-server
+    volumes:
+      - cache:/data
+    networks:
+      - default
+
+networks:
+  default:
+    name: "${NAME}"
+    driver: bridge
+
+volumes:
+  postgresql:
+    name: "${NAME}-postgresql"
+  pgadmin:
+    name: "${NAME}-pgadmin"
+  cache:
+    name: "${NAME}-redis"
