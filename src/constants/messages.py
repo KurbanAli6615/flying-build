@@ -51,3 +51,17 @@ INVALID_REQUEST = "Invalid request."
 EMAIL_FIELD_REQUIRED = "Email field is required."
 
 PASSWORD_FIELD_REQUIRED = "Password field is required."
+
+INVALID_NAME = "Name must not be an empty string."
+
+INVALID_USERNAME = (
+    "Username must be 4–20 characters long and contain only letters and numbers."
+)
+
+INVALID_COUNTRY_CODE = "Country code must start with '+' and contain 1 to 4 digits."
+
+PHONE_REGEX = "Invalid phone number format."
+
+INVALID_IS_ACTIVE = "Is active must be a boolean value."
+
+INVALID_ROLE_VALUE = "Role value must be a valid role value."

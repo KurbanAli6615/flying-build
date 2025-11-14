@@ -10,22 +10,17 @@ from cryptography.hazmat.primitives import padding as crypto_padding
 from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from pydantic import EmailStr
 
 import constants
 from apps.user.exceptions import (
     EmptyDescriptionException,
     InvalidEmailException,
     InvalidEncryptedData,
-    InvalidPhoneFormatException,
-    WeakPasswordException,
 )
 from config import settings
-from constants.regex import EMAIL_REGEX, FIRST_NAME_REGEX, PHONE_REGEX
 from core.auth import access, admin_access, admin_refresh, refresh
 from core.exceptions import InvalidRoleException
 from core.types import RoleType
-from core.utils import strong_password
 
 
 async def create_password():
@@ -124,35 +119,6 @@ async def decrypt(
         return plaintext
     except Exception:
         raise InvalidEncryptedData
-
-
-def validate_input_fields(
-    first_name: str, email: EmailStr, phone: str, password: str
-) -> None:
-    """
-    Validate email, phone, and password fields.
-
-    Args:
-        first_name (str): The user's first name.
-        email (EmailStr): The user's email address.
-        phone (str): The user's phone number.
-        password (str): The user's password.
-
-    Raises:
-        ValueError: If any of the fields are invalid.
-    """
-
-    if not re.match(EMAIL_REGEX, email):
-        raise InvalidEmailException
-
-    if not re.search(FIRST_NAME_REGEX, first_name, re.I):
-        raise ValueError(constants.INVALID + f"{first_name.replace('_', ' ')}")
-
-    if not re.match(PHONE_REGEX, phone, re.I):
-        raise InvalidPhoneFormatException
-
-    if not strong_password(password):
-        raise WeakPasswordException
 
 
 def validate_email(email: str) -> str | None:

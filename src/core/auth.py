@@ -12,11 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
 import constants.messages as constants
-from apps.user.models import UserModel
 from config import settings
 from core.db import db_session
 from core.exceptions import InvalidJWTTokenException, UnauthorizedError
 from core.types import RoleType
+from models import UserModel
 
 
 class JWToken(SecurityBase):

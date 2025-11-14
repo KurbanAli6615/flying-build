@@ -1,4 +1,4 @@
-from typing import Any, Generic, TypeVar
+from typing import Generic, TypeVar
 
 from fastapi import status as st
 from pydantic import BaseModel
@@ -38,10 +38,6 @@ class BaseResponse(CamelCaseModel, Generic[BaseDataField]):
     status: str = constants.SUCCESS
     code: int = st.HTTP_200_OK
     data: BaseDataField | None = None
-
-    def __init__(self, data: Any) -> None:
-        super().__init__()
-        self.data = data
 
 
 class BaseValidationResponse(CamelCaseModel, Generic[BaseDataField]):

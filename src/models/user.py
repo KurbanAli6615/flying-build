@@ -25,12 +25,14 @@ class UserModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     """
 
     __tablename__ = "users"
-    first_name: Mapped[str] = mapped_column(index=True)
-    last_name: Mapped[str] = mapped_column(index=True)
+    name: Mapped[str] = mapped_column(index=True)
+    username: Mapped[str] = mapped_column(index=True, unique=True)
     email: Mapped[str] = mapped_column(index=True, unique=True)
+    country_code: Mapped[str] = mapped_column(index=True)
     phone: Mapped[str] = mapped_column(index=True, unique=True)
     password: Mapped[str] = mapped_column()
     role: Mapped[RoleType] = mapped_column()
+    is_active: Mapped[bool] = mapped_column(default=True)
 
     def __str__(self) -> str:
         """
@@ -38,35 +40,41 @@ class UserModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
 
         :return: A string with the user's first and last name.
         """
-        return f"<{self.first_name} {self.last_name}>"
+        return f"<{self.name} {self.username}>"
 
     @classmethod
     def create(
         cls,
-        first_name: str,
-        last_name: str,
+        name: str,
+        username: str,
+        country_code: str,
         phone: str,
         email: str,
         password: str,
+        is_active: bool = True,
         role: str = RoleType.USER,
     ) -> Self:
         """
         Create a new user.
 
-        :param first_name: The user's first name.
-        :param last_name: The user's last name.
+        :param name: The user's name.
+        :param username: The user's username.
+        :param country_code: The user's country code.
         :param phone: The user's phone number.
         :param email: The user's email address.
         :param password: The user's hashed password.
+        :param is_active: The user's active status. Defaults to True.
         :param role: The user's role identifier. Defaults to RoleType.USER.
         :return: An instance of UserModel.
         """
         return cls(
             id=uuid.uuid4(),
-            first_name=first_name,
-            last_name=last_name,
+            name=name,
+            username=username,
+            country_code=country_code,
             email=email.lower(),
             phone=phone,
             password=password,
             role=role,
+            is_active=is_active,
         )

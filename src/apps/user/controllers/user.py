@@ -5,7 +5,6 @@ from fastapi import APIRouter, Body, Depends, Path, Request, status
 from fastapi.responses import JSONResponse
 
 import constants
-from apps import UserModel
 from apps.user.schemas import BaseUserResponse
 from apps.user.services import UserService
 from core.auth import HasPermission
@@ -13,6 +12,7 @@ from core.data_encrypt.schemas import EncryptedRequest
 from core.types import RoleType
 from core.utils.schema import BaseResponse
 from core.utils.set_cookies import set_auth_cookies
+from models import UserModel
 
 router = APIRouter(prefix="/user", tags=["User"])
 
@@ -69,9 +69,8 @@ async def create_user(
     Returns:
         BaseResponse[BaseUserResponse]: The response containing the created user information.
     """
-    return BaseResponse(
-        data=await service.create_user(request=request, **body.model_dump())
-    )
+    user = await service.create_user(request=request, **body.model_dump())
+    return BaseResponse(data=BaseUserResponse.model_validate(user))
 
 
 @router.get(

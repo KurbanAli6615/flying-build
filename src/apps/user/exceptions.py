@@ -78,3 +78,51 @@ class InvalidRequestException(BadRequestError):
     """
 
     message = constants.INVALID_REQUEST
+
+
+class InvalidUserNameException(BadRequestError):
+    """
+    Custom exception for invalid username.
+    """
+
+    message = constants.INVALID_USERNAME
+
+
+class InvalidCountryCodeException(BadRequestError):
+    """
+    Custom exception for invalid country code.
+    """
+
+    message = constants.INVALID_COUNTRY_CODE
+
+
+class InvalidNameException(BadRequestError):
+    """
+    Custom exception for invalid name.
+    """
+
+    message = constants.INVALID_NAME
+
+
+class InvalidIsActiveException(BadRequestError):
+    """
+    Custom exception for invalid is active.
+    """
+
+    message = constants.INVALID_IS_ACTIVE
+
+
+class InvalidRoleValueException(BadRequestError):
+    """
+    Custom exception for invalid role value.
+    """
+
+    message = constants.INVALID_ROLE_VALUE
+
+
+class InvalidRequestError(BadRequestError):
+    """
+    Custom exception for invalid request.
+    """
+
+    message = constants.INVALID_REQUEST
