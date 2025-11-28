@@ -14,5 +14,10 @@ class BaseUserResponse(CamelCaseModel):
     """
 
     id: UUID
-    first_name: str
-    last_name: str
+    name: str
+    username: str
+    email: str
+    country_code: str
+    phone: str
+    role: str
+    is_active: bool

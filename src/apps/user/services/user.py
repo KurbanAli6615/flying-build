@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Annotated
 from uuid import UUID
 
@@ -10,15 +11,22 @@ from sqlalchemy.orm import load_only
 import constants
 from apps.user.exceptions import (
     DuplicateEmailException,
+    InvalidCountryCodeException,
     InvalidCredentialsException,
+    InvalidEmailException,
+    InvalidNameException,
+    InvalidPhoneFormatException,
+    InvalidUserNameException,
     UserNotFoundException,
+    WeakPasswordException,
 )
-from apps.user.models.user import UserModel
-from core.common_helpers import create_tokens, decrypt, validate_input_fields
+from constants.regex import COUNTRY_CODE, EMAIL_REGEX, NAME, PHONE_REGEX, USERNAME
+from core.common_helpers import create_tokens, decrypt, strong_password
 from core.db import db_session
 from core.exceptions import BadRequestError
 from core.types import RoleType
 from core.utils.hashing import hash_password, verify_password
+from models import UserModel
 
 
 class UserService:
@@ -54,8 +62,12 @@ class UserService:
                 load_only(
                     UserModel.id,
                     UserModel.email,
-                    UserModel.first_name,
-                    UserModel.last_name,
+                    UserModel.name,
+                    UserModel.username,
+                    UserModel.country_code,
+                    UserModel.phone,
+                    UserModel.is_active,
+                    UserModel.role,
                 )
             )
             .where(UserModel.id == user_id)
@@ -115,16 +127,19 @@ class UserService:
 
     async def create_user(
         self, request: Request, encrypted_data: str, encrypted_key: str, iv: str
-    ) -> UserModel:
+    ):
         """
         Create a new user.
 
         Args:
             email (EmailStr): The user's email address.
             password (str): The user's password.
-            first_name (str): The user's first name.
-            last_name (str): The user's last name.
+            name (str): The user's name.
+            username (str): The user's username.
+            country_code (str): The user's country code.
             phone (str): The user's phone number.
+            is_active (bool): The user's active status.
+            role (RoleType): The user's role.
 
         Returns:
             UserModel: The created user model.
@@ -140,33 +155,84 @@ class UserService:
         )
         decrypted_data = json.loads(decrypted_data)
 
-        first_name = decrypted_data.get("first_name")
-        last_name = decrypted_data.get("last_name")
+        name = decrypted_data.get("name")
+        username = decrypted_data.get("username")
+        country_code = decrypted_data.get("country_code")
         phone = decrypted_data.get("phone")
         email = decrypted_data.get("email")
         password = decrypted_data.get("password")
 
-        validate_input_fields(
-            first_name=first_name, email=email, phone=phone, password=password
+        self.validate_input_fields(
+            name=name,
+            username=username,
+            country_code=country_code,
+            phone=phone,
+            email=email,
+            password=password,
         )
 
         user = await self.session.scalar(
             select(UserModel)
-            .options(load_only(UserModel.email))
-            .where(or_(UserModel.email == email, UserModel.phone == phone))
+            .options(load_only(UserModel.email, UserModel.username))
+            .where(or_(UserModel.email == email))
         )
         if user:
             raise DuplicateEmailException
 
         user = UserModel.create(
-            first_name=first_name,
-            last_name=last_name,
+            name=name,
+            username=username,
+            country_code=country_code,
             phone=phone,
             password=await hash_password(password),
             email=email,
+            is_active=True,
+            role=RoleType.USER,
         )
         self.session.add(user)
         return user
+
+    async def validate_input_fields(
+        self,
+        name: str,
+        username: str,
+        country_code: str,
+        phone: str,
+        email: str,
+        password: str,
+    ):
+        """
+        Validate the input fields of the user.
+
+        Args:
+            name (str): The user's  name.
+            username (str): The user's username.
+            country_code (str): The user's country code.
+            phone (str): The user's phone number.
+            email (str): The user's email address.
+            password (str): The user's password.
+
+        Raises:
+            ValueError: If any of the fields are invalid.
+        """
+
+        if not re.search(NAME, name, re.I):
+            raise InvalidNameException
+
+        if not re.search(USERNAME, username, re.I):
+            raise InvalidUserNameException
+
+        if not re.search(COUNTRY_CODE, country_code, re.I):
+            raise InvalidCountryCodeException
+
+        if not re.match(PHONE_REGEX, phone, re.I):
+            raise InvalidPhoneFormatException
+
+        if not re.match(EMAIL_REGEX, email):
+            raise InvalidEmailException
+
+        if not strong_password(password):
+            raise WeakPasswordException
 
     async def get_user_by_id(self, user_id: UUID):
         """
@@ -185,8 +251,12 @@ class UserService:
                 load_only(
                     UserModel.id,
                     UserModel.email,
-                    UserModel.first_name,
-                    UserModel.last_name,
+                    UserModel.name,
+                    UserModel.username,
+                    UserModel.country_code,
+                    UserModel.phone,
+                    UserModel.is_active,
+                    UserModel.role,
                 )
             )
             .where(UserModel.id == user_id)
