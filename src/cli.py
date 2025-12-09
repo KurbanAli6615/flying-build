@@ -12,7 +12,7 @@ from config import settings
 
 cli = Typer(pretty_exceptions_show_locals=False)
 alembic_cfg = Config()
-alembic_cfg.set_main_option("script_location", "migrations")
+alembic_cfg.set_main_option("script_location", "src/migrations")
 alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 alembic_cfg.set_main_option("compare_type", "true")
 
