@@ -21,7 +21,8 @@ from apps.user.exceptions import (
     WeakPasswordException,
 )
 from constants.regex import COUNTRY_CODE, EMAIL_REGEX, NAME, PHONE_REGEX, USERNAME
-from core.common_helpers import create_tokens, decrypt, strong_password
+from core.common_helpers import create_tokens, decrypt
+from core.utils.password import strong_password
 from core.db import db_session
 from core.exceptions import BadRequestError
 from core.types import RoleType
