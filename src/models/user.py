@@ -1,7 +1,7 @@
 import uuid
 from typing import Self
 
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.db import Base
 from core.types import RoleType
@@ -33,6 +33,9 @@ class UserModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     password: Mapped[str] = mapped_column()
     role: Mapped[RoleType] = mapped_column()
     is_active: Mapped[bool] = mapped_column(default=True)
+
+    # ⭐ One-to-Many → teams created by the user
+    owned_teams = relationship("TeamModel")
 
     def __str__(self) -> str:
         """
