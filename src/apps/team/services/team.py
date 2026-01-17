@@ -15,7 +15,10 @@ class TeamService:
 
     def __init__(self, session: Annotated[AsyncSession, Depends(db_session)]):
         """
-        Initialize TeamService with a database session.
+        Create a TeamService bound to a database session.
+        
+        Parameters:
+            session (AsyncSession): Database session injected via FastAPI Depends(db_session) used for database operations.
         """
         self.session = session
 
@@ -23,13 +26,13 @@ class TeamService:
     # *======================================== Create Team ========================================
     async def create_team(self, request: Request, user: UserModel) -> BaseResponse:
         """
-        Create a new team.
-
-        Args:
-            request: The request object.
-            user: The user object.
-
+        Create a new team using data from the request on behalf of the given user.
+        
+        Parameters:
+            request (Request): HTTP request containing the team creation payload.
+            user (UserModel): User performing the action; used for ownership and authorization context.
+        
         Returns:
-            BaseResponse: The response object.
+            BaseResponse: Result of the creation operation containing status and any data or error information.
         """
         pass

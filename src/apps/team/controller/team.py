@@ -26,14 +26,13 @@ async def create_team(
     service: Annotated[TeamService, Depends()],
 ) -> BaseResponse:
     """
-    Create a new team.
-
-    Args:
-        request: The request object.
-        user: The user object.
-        service: The team service.
-
+    Create a new team for the authenticated user.
+    
+    Parameters:
+        request (Request): FastAPI request containing the creation payload and request context.
+        user (UserModel): Authenticated user with USER role performing the operation.
+    
     Returns:
-        BaseResponse: The response object.
+        BaseResponse: Response containing the created team's data and metadata.
     """
     return await service.create_team(request, user)

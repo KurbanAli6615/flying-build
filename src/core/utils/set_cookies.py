@@ -9,15 +9,17 @@ def set_auth_cookies(
     response: JSONResponse, tokens: TokensResponse, role: RoleType
 ) -> JSONResponse:
     """
-    Set authentication cookies in an HTTP response.
-    This function takes an HTTP response object and a dictionary of tokens, and sets two cookies,
-    "accessToken" and "refreshToken," in the response. These cookies are used for user authentication.
-    Args:
-        response (Response): The HTTP response object to set cookies in.
-        tokens (dict[str, str]): A dictionary containing access and refresh tokens.
-        role (role-type): A role type of user
+    Attach authentication cookies to the given HTTP response according to the user's role.
+    
+    For RoleType.USER sets `accessToken` and `refreshToken`; for RoleType.ADMIN sets `adminAccessToken` and `adminRefreshToken`. Cookie attributes (domain, secure, samesite, httponly, expires) are chosen based on environment settings.
+    
+    Parameters:
+        response (JSONResponse): The HTTP response to modify.
+        tokens (TokensResponse): Object containing `access_token` and `refresh_token` used as cookie values.
+        role (RoleType): Role that determines which cookie names are set (user or admin).
+    
     Returns:
-        Response: The updated HTTP response with the authentication cookies set.
+        JSONResponse: The same response object with the authentication cookies attached.
     """
 
     production_cookies_params = {
