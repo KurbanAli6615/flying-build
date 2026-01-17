@@ -67,3 +67,20 @@ class JoinRequestStatus(StrEnum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     DECLINED = "DECLINED"
+
+
+class TeamStatus(StrEnum):
+    """
+    Enumeration of team status types.
+
+    Defines different statuses for teams:
+    - ACTIVE: Team is active and operational.
+    - DELETED: Team is soft-deleted (not shown in lists).
+
+    Attributes:
+        ACTIVE: Team is active.
+        DELETED: Team is deleted (soft delete).
+    """
+
+    ACTIVE = "ACTIVE"
+    DELETED = "DELETED"

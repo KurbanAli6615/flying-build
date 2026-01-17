@@ -19,6 +19,7 @@ class TeamResponse(CamelCaseModel):
         role (TeamRole): The current user's role in the team.
         created_by (str): Name of the team creator. Shows "You" if current user is owner.
         created_at (datetime): When the team was created.
+        member_count (int): The number of members in the team.
     """
 
     id: UUID
@@ -30,6 +31,7 @@ class TeamResponse(CamelCaseModel):
     role: TeamRole
     created_by: str
     created_at: datetime
+    member_count: int
 
 
 class TeamMemberResponse(CamelCaseModel):

@@ -5,6 +5,7 @@ from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.db import Base
+from core.types import TeamStatus
 from core.utils.mixins import TimeStampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
@@ -32,6 +33,7 @@ class TeamModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     description: Mapped[str] = mapped_column(nullable=True)
     team_code: Mapped[str] = mapped_column(index=True, unique=True)
     is_active: Mapped[bool] = mapped_column(default=True)
+    status: Mapped[TeamStatus] = mapped_column(default=TeamStatus.ACTIVE, index=True)
 
     members: Mapped[list["TeamMemberModel"]] = relationship(
         "TeamMemberModel", back_populates="team", lazy="selectin"

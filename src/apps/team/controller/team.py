@@ -1,7 +1,7 @@
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, Path, Request, status
+from fastapi import APIRouter, Body, Depends, Path, Query, Request, status
 
 from apps.team.schemas.request import (
     CreateTeamRequest,
@@ -19,7 +19,7 @@ from apps.team.schemas.response import (
 )
 from apps.team.services.team import TeamService
 from core.auth import HasPermission, HasTeamPermission
-from core.types import RoleType, TeamRole
+from core.types import JoinRequestStatus, RoleType, TeamRole
 from core.utils.schema import BaseResponse, SuccessResponse
 from models import TeamMemberModel, UserModel
 
@@ -300,6 +300,42 @@ async def demote_from_admin(
     return BaseResponse(data=await service.demote_from_admin(team_id, user_id, user))
 
 
+@router.delete(
+    "/{team_id}/members/{user_id}",
+    status_code=status.HTTP_200_OK,
+    name="remove member from team",
+    description="Remove Member From Team",
+    operation_id="remove_member_from_team",
+)
+async def remove_member_from_team(
+    team_id: Annotated[UUID, Path()],
+    user_id: Annotated[UUID, Path()],
+    team_member: Annotated[
+        TeamMemberModel, Depends(HasTeamPermission([TeamRole.OWNER]))
+    ],
+    user: Annotated[UserModel, Depends(HasPermission(RoleType.USER))],
+    service: Annotated[TeamService, Depends()],
+) -> BaseResponse[SuccessResponse]:
+    """
+    Remove a member from the team.
+
+    Only the team owner can remove members from the team.
+
+    Args:
+        team_id: The team's unique identifier.
+        user_id: The user to remove from the team.
+        team_member: Team membership info (from HasTeamPermission).
+        user: Authenticated user (team owner).
+        service: Team service.
+
+    Returns:
+        BaseResponse[SuccessResponse]: Success message.
+    """
+    return BaseResponse(
+        data=await service.remove_member_from_team(team_id, user_id, user)
+    )
+
+
 @router.post(
     "/join/request",
     status_code=status.HTTP_201_CREATED,
@@ -340,73 +376,62 @@ async def list_team_join_requests(
     ],
     user: Annotated[UserModel, Depends(HasPermission(RoleType.USER))],
     service: Annotated[TeamService, Depends()],
+    status_filter: Annotated[
+        JoinRequestStatus | None,
+        Query(
+            description="Filter join requests by status: APPROVED, PENDING, or DECLINED. If not provided, returns all requests."
+        ),
+    ] = None,
 ) -> BaseResponse[JoinRequestListResponse]:
     """
-    List all join requests for a team.
+    List join requests for a team with optional status filter.
 
     Args:
         team_id: The team's unique identifier.
+        status_filter: Optional filter by status (APPROVED, PENDING, or DECLINED).
+                       If None, returns all requests.
         team_member: Team membership info (from HasTeamPermission).
         user: Authenticated user (team owner).
         service: Team service.
 
     Returns:
-        BaseResponse[JoinRequestListResponse]: List of join requests.
+        BaseResponse[JoinRequestListResponse]: List of join requests filtered by status (or all if no filter).
     """
-    join_requests = await service.list_team_join_requests(team_id, user)
+    join_requests = await service.list_team_join_requests(team_id, user, status_filter)
     return BaseResponse(data=JoinRequestListResponse(join_requests=join_requests))
 
 
 @router.post(
-    "/join-request/{request_id}/approve",
+    "/join-request/{request_id}/review",
     status_code=status.HTTP_200_OK,
-    name="approve join request",
-    description="Approve Join Request",
-    operation_id="approve_join_request",
+    name="review join request",
+    description="Review Join Request (Approve or Reject)",
+    operation_id="review_join_request",
 )
-async def approve_join_request(
+async def review_join_request(
     request_id: Annotated[UUID, Path()],
+    action: Annotated[
+        Literal[JoinRequestStatus.APPROVED, JoinRequestStatus.DECLINED],
+        Query(description="Action to take: APPROVED to approve, DECLINED to reject"),
+    ],
     user: Annotated[UserModel, Depends(HasPermission(RoleType.USER))],
     service: Annotated[TeamService, Depends()],
 ) -> BaseResponse[JoinRequestResponse]:
     """
-    Approve a join request and add user as team member.
+    Review a join request (approve or reject).
 
     Args:
         request_id: The join request's unique identifier.
+        action: Action to take - APPROVED to approve, DECLINED to reject.
         user: Authenticated user (team owner).
         service: Team service.
 
     Returns:
         BaseResponse[JoinRequestResponse]: Updated join request data.
     """
-    return BaseResponse(data=await service.approve_join_request(request_id, user))
-
-
-@router.post(
-    "/join-request/{request_id}/reject",
-    status_code=status.HTTP_200_OK,
-    name="reject join request",
-    description="Reject Join Request",
-    operation_id="reject_join_request",
-)
-async def reject_join_request(
-    request_id: Annotated[UUID, Path()],
-    user: Annotated[UserModel, Depends(HasPermission(RoleType.USER))],
-    service: Annotated[TeamService, Depends()],
-) -> BaseResponse[JoinRequestResponse]:
-    """
-    Reject a join request.
-
-    Args:
-        request_id: The join request's unique identifier.
-        user: Authenticated user (team owner).
-        service: Team service.
-
-    Returns:
-        BaseResponse[JoinRequestResponse]: Updated join request data.
-    """
-    return BaseResponse(data=await service.reject_join_request(request_id, user))
+    return BaseResponse(
+        data=await service.review_join_request(request_id, user, action)
+    )
 
 
 @router.get(
@@ -432,29 +457,3 @@ async def list_my_join_requests(
     """
     join_requests = await service.list_my_join_requests(user)
     return BaseResponse(data=JoinRequestListResponse(join_requests=join_requests))
-
-
-@router.get(
-    "/join-request/{request_id}",
-    status_code=status.HTTP_200_OK,
-    name="get join request",
-    description="Get Join Request",
-    operation_id="get_join_request",
-)
-async def get_join_request(
-    request_id: Annotated[UUID, Path()],
-    user: Annotated[UserModel, Depends(HasPermission(RoleType.USER))],
-    service: Annotated[TeamService, Depends()],
-) -> BaseResponse[JoinRequestResponse]:
-    """
-    Get join request details by ID.
-
-    Args:
-        request_id: The join request's unique identifier.
-        user: Authenticated user.
-        service: Team service.
-
-    Returns:
-        BaseResponse[JoinRequestResponse]: Join request data.
-    """
-    return BaseResponse(data=await service.get_join_request_by_id(request_id, user))

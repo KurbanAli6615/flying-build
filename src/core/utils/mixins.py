@@ -31,5 +31,5 @@ class UUIDPrimaryKeyMixin:
     """
 
     id: Mapped[UUID] = mapped_column(
-        primary_key=True, default=uuid.uuid4(), nullable=False
+        primary_key=True, default=uuid.uuid4, nullable=False
     )

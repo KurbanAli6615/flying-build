@@ -3,7 +3,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, Request
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, load_only
 
@@ -32,7 +32,8 @@ from apps.team.schemas.response import (
 )
 from core.common_helpers import generate_team_code
 from core.db import db_session
-from core.types import JoinRequestStatus, TeamRole
+from core.exceptions import BadRequestError
+from core.types import JoinRequestStatus, TeamRole, TeamStatus
 from core.utils.schema import SuccessResponse
 from models import JoinRequestModel, TeamMemberModel, TeamModel, UserModel
 
@@ -82,6 +83,7 @@ class TeamService:
             description=data.description,
             team_code=team_code,
             is_active=True,
+            status=TeamStatus.ACTIVE,
         )
         self.session.add(team)
         await self.session.flush()
@@ -91,6 +93,7 @@ class TeamService:
         )
         self.session.add(team_member)
 
+        # Member count is 1 (just the owner) for a newly created team
         return TeamResponse(
             id=team.id,
             owner_id=team.owner_id,
@@ -101,6 +104,7 @@ class TeamService:
             role=TeamRole.OWNER,
             created_by="You",
             created_at=team.created_at,
+            member_count=1,
         )
 
     #  MARK: - List My Teams
@@ -127,12 +131,17 @@ class TeamService:
         team_members_list = list(team_members)
         teams = []
         owner_ids = set()
+        team_ids = set()
         for member in team_members_list:
             team = member.team
+            # Filter out deleted teams - don't show them in "my teams" list
+            if team.status == TeamStatus.DELETED:
+                continue
             # Filter: if is_active=False, show only to OWNER
             if not team.is_active and member.role != TeamRole.OWNER:
                 continue
             owner_ids.add(team.owner_id)
+            team_ids.add(team.id)
 
         # Load all owners in one query
         owners = {}
@@ -144,8 +153,24 @@ class TeamService:
             )
             owners = {owner.id: owner.name for owner in owner_users}
 
+        # Get member counts for all teams in one query
+        member_counts = {}
+        if team_ids:
+            count_results = await self.session.execute(
+                select(
+                    TeamMemberModel.team_id,
+                    func.count(TeamMemberModel.id).label("count"),
+                )
+                .where(TeamMemberModel.team_id.in_(team_ids))
+                .group_by(TeamMemberModel.team_id)
+            )
+            member_counts = {row.team_id: row.count for row in count_results.all()}
+
         for member in team_members_list:
             team = member.team
+            # Filter out deleted teams - don't show them in "my teams" list
+            if team.status == TeamStatus.DELETED:
+                continue
             # Filter: if is_active=False, show only to OWNER
             if not team.is_active and member.role != TeamRole.OWNER:
                 continue
@@ -155,6 +180,8 @@ class TeamService:
                 if member.role == TeamRole.OWNER
                 else owners.get(team.owner_id, "")
             )
+
+            member_count = member_counts.get(team.id, 0)
 
             teams.append(
                 TeamResponse(
@@ -167,6 +194,7 @@ class TeamService:
                     role=member.role,
                     created_by=created_by,
                     created_at=team.created_at,
+                    member_count=member_count,
                 )
             )
 
@@ -213,6 +241,10 @@ class TeamService:
             select(TeamModel).where(TeamModel.id == team_id)
         )
 
+        # Check if team is deleted
+        if team.status == TeamStatus.DELETED:
+            raise TeamNotFound
+
         # Check if team is deactivated and user is MEMBER
         if not team.is_active and team_member.role == TeamRole.MEMBER:
             raise TeamDeactivated
@@ -229,6 +261,14 @@ class TeamService:
             else (owner.name if owner else "")
         )
 
+        # Get member count
+        member_count_result = await self.session.scalar(
+            select(func.count(TeamMemberModel.id)).where(
+                TeamMemberModel.team_id == team_id
+            )
+        )
+        member_count = member_count_result if member_count_result is not None else 0
+
         return TeamResponse(
             id=team.id,
             owner_id=team.owner_id,
@@ -239,6 +279,7 @@ class TeamService:
             role=team_member.role,
             created_by=created_by,
             created_at=team.created_at,
+            member_count=member_count,
         )
 
     #  MARK: - Update Team
@@ -289,6 +330,14 @@ class TeamService:
             else (owner.name if owner else "")
         )
 
+        # Get member count
+        member_count_result = await self.session.scalar(
+            select(func.count(TeamMemberModel.id)).where(
+                TeamMemberModel.team_id == team_id
+            )
+        )
+        member_count = member_count_result if member_count_result is not None else 0
+
         return TeamResponse(
             id=team.id,
             owner_id=team.owner_id,
@@ -299,6 +348,7 @@ class TeamService:
             role=team_member.role,
             created_by=created_by,
             created_at=team.created_at,
+            member_count=member_count,
         )
 
     #  MARK: - Toggle Team Active Status
@@ -342,9 +392,9 @@ class TeamService:
     # *======================================== Delete Team ========================================
     async def delete_team(self, team_id: UUID, owner: UserModel) -> SuccessResponse:
         """
-        Delete a team (soft delete by setting is_active=False).
+        Delete a team (soft delete by setting status=DELETED).
 
-        Only the team owner can delete the team.
+        Only the team owner can delete the team. Deleted teams will not appear in "my teams" list.
 
         Parameters:
             team_id (UUID): The team's unique identifier.
@@ -366,7 +416,8 @@ class TeamService:
 
         await self._validate_team_role(team_id, owner.id, [TeamRole.OWNER])
 
-        team.is_active = False
+        # Soft delete by setting status to DELETED
+        team.status = TeamStatus.DELETED
 
         return SuccessResponse()
 
@@ -525,6 +576,75 @@ class TeamService:
 
         return SuccessResponse()
 
+    #  MARK: - Remove Member From Team
+    # *======================================== Remove Member From Team ========================================
+    async def remove_member_from_team(
+        self, team_id: UUID, user_id: UUID, owner: UserModel
+    ) -> SuccessResponse:
+        """
+        Remove a member from the team.
+
+        Only the team owner can remove members from the team.
+
+        Parameters:
+            team_id (UUID): The team's unique identifier.
+            user_id (UUID): The user to remove from the team.
+            owner (UserModel): The team owner.
+
+        Returns:
+            SuccessResponse: Success message.
+
+        Raises:
+            TeamNotFound: If team is not found.
+            UnauthorizedTeamAccess: If user is not OWNER.
+            TeamMemberNotFound: If user is not a team member.
+            CannotModifyOwner: If trying to remove the owner.
+        """
+        team = await self.session.scalar(
+            select(TeamModel)
+            .options(load_only(TeamModel.id))
+            .where(TeamModel.id == team_id)
+        )
+
+        if not team:
+            raise TeamNotFound
+
+        await self._validate_team_role(team_id, owner.id, [TeamRole.OWNER])
+
+        if user_id == owner.id:
+            raise CannotModifyOwner
+
+        team_member = await self.session.scalar(
+            select(TeamMemberModel).where(
+                TeamMemberModel.team_id == team_id, TeamMemberModel.user_id == user_id
+            )
+        )
+
+        if not team_member:
+            raise TeamMemberNotFound
+
+        if team_member.role == TeamRole.OWNER:
+            raise CannotModifyOwner
+
+        # Delete old APPROVED join requests for this user and team
+        # This ensures clean state when user requests to join again
+        await self.session.execute(
+            delete(JoinRequestModel).where(
+                JoinRequestModel.team_id == team_id,
+                JoinRequestModel.requested_by == user_id,
+                JoinRequestModel.status == JoinRequestStatus.APPROVED,
+            )
+        )
+
+        # Delete the team member
+        await self.session.execute(
+            delete(TeamMemberModel).where(
+                TeamMemberModel.team_id == team_id, TeamMemberModel.user_id == user_id
+            )
+        )
+
+        return SuccessResponse()
+
     #  MARK: - Create Join Request
     # *======================================== Create Join Request ========================================
     async def create_join_request(
@@ -532,6 +652,11 @@ class TeamService:
     ) -> JoinRequestResponse:
         """
         Create a join request using team code.
+
+        The logic follows this order:
+        1. Check if there's a PENDING request - if yes, raise error
+        2. Check if user is already a member - if yes, raise error
+        3. If previous request was APPROVED/REJECTED and user is not a member, create new PENDING request
 
         Parameters:
             data (JoinTeamRequest): Join request data with team_code.
@@ -552,7 +677,26 @@ class TeamService:
         if not team:
             raise InvalidTeamCode
 
-        # Check if user is already a member
+        # Check if team is deleted - users cannot join deleted teams
+        if team.status == TeamStatus.DELETED:
+            raise InvalidTeamCode
+
+        # Step 1: Check for duplicate PENDING request first
+        # If there's a pending request, user must wait for it to be approved/rejected
+        existing_pending_request = await self.session.scalar(
+            select(JoinRequestModel).where(
+                JoinRequestModel.team_id == team.id,
+                JoinRequestModel.requested_by == user.id,
+                JoinRequestModel.status == JoinRequestStatus.PENDING,
+            )
+        )
+
+        if existing_pending_request:
+            raise DuplicateJoinRequest
+
+        # Step 2: Check if user is already a member of the team
+        # This handles the case where previous request was APPROVED but user was removed
+        # or if user is currently a member
         existing_member = await self.session.scalar(
             select(TeamMemberModel).where(
                 TeamMemberModel.team_id == team.id, TeamMemberModel.user_id == user.id
@@ -562,18 +706,10 @@ class TeamService:
         if existing_member:
             raise UserAlreadyMember
 
-        # Check for duplicate pending request
-        existing_request = await self.session.scalar(
-            select(JoinRequestModel).where(
-                JoinRequestModel.team_id == team.id,
-                JoinRequestModel.requested_by == user.id,
-                JoinRequestModel.status == JoinRequestStatus.PENDING,
-            )
-        )
-
-        if existing_request:
-            raise DuplicateJoinRequest
-
+        # Step 3: Create new PENDING request
+        # At this point, either:
+        # - No previous request exists, OR
+        # - Previous request was APPROVED/REJECTED and user is not a member
         join_request = JoinRequestModel(
             team_id=team.id, requested_by=user.id, status=JoinRequestStatus.PENDING
         )
@@ -597,17 +733,22 @@ class TeamService:
     #  MARK: - List Team Join Requests
     # *======================================== List Team Join Requests ========================================
     async def list_team_join_requests(
-        self, team_id: UUID, owner: UserModel
+        self,
+        team_id: UUID,
+        owner: UserModel,
+        status_filter: JoinRequestStatus | None = None,
     ) -> list[JoinRequestResponse]:
         """
-        List all join requests for a team.
+        List join requests for a team with optional status filter.
 
         Parameters:
             team_id (UUID): The team's unique identifier.
             owner (UserModel): The team owner.
+            status_filter (JoinRequestStatus | None): Optional filter by status (APPROVED, PENDING, or DECLINED).
+                                                       If None, returns all requests.
 
         Returns:
-            list[JoinRequestResponse]: List of join requests.
+            list[JoinRequestResponse]: List of join requests filtered by status (or all if no filter).
 
         Raises:
             TeamNotFound: If team is not found.
@@ -624,7 +765,8 @@ class TeamService:
 
         await self._validate_team_role(team_id, owner.id, [TeamRole.OWNER])
 
-        join_requests = await self.session.scalars(
+        # Build query with optional status filter
+        query = (
             select(JoinRequestModel)
             .options(
                 joinedload(JoinRequestModel.requester),
@@ -632,6 +774,12 @@ class TeamService:
             )
             .where(JoinRequestModel.team_id == team_id)
         )
+
+        # Apply status filter if provided
+        if status_filter is not None:
+            query = query.where(JoinRequestModel.status == status_filter)
+
+        join_requests = await self.session.scalars(query)
 
         return [
             JoinRequestResponse(
@@ -650,17 +798,18 @@ class TeamService:
             for req in join_requests
         ]
 
-    #  MARK: - Approve Join Request
-    # *======================================== Approve Join Request ========================================
-    async def approve_join_request(
-        self, request_id: UUID, owner: UserModel
+    #  MARK: - Review Join Request
+    # *======================================== Review Join Request ========================================
+    async def review_join_request(
+        self, request_id: UUID, owner: UserModel, action: JoinRequestStatus
     ) -> JoinRequestResponse:
         """
-        Approve a join request and add user as team member.
+        Review a join request (approve or reject).
 
         Parameters:
             request_id (UUID): The join request's unique identifier.
             owner (UserModel): The team owner.
+            action (JoinRequestStatus): Action to take - APPROVED or DECLINED.
 
         Returns:
             JoinRequestResponse: Updated join request data.
@@ -668,8 +817,12 @@ class TeamService:
         Raises:
             JoinRequestNotFound: If join request is not found.
             UnauthorizedTeamAccess: If user is not OWNER.
-            UserAlreadyMember: If user is already a team member.
+            UserAlreadyMember: If user is already a team member (only for approve).
+            BadRequestError: If action is not APPROVED or DECLINED.
         """
+        if action not in [JoinRequestStatus.APPROVED, JoinRequestStatus.DECLINED]:
+            raise BadRequestError("Action must be APPROVED or DECLINED")
+
         join_request = await self.session.scalar(
             select(JoinRequestModel)
             .options(joinedload(JoinRequestModel.team))
@@ -681,87 +834,27 @@ class TeamService:
 
         await self._validate_team_role(join_request.team_id, owner.id, [TeamRole.OWNER])
 
-        # Check if user is already a member
-        existing_member = await self.session.scalar(
-            select(TeamMemberModel).where(
-                TeamMemberModel.team_id == join_request.team_id,
-                TeamMemberModel.user_id == join_request.requested_by,
+        if action == JoinRequestStatus.APPROVED:
+            # Check if user is already a member
+            existing_member = await self.session.scalar(
+                select(TeamMemberModel).where(
+                    TeamMemberModel.team_id == join_request.team_id,
+                    TeamMemberModel.user_id == join_request.requested_by,
+                )
             )
-        )
 
-        if existing_member:
-            raise UserAlreadyMember
+            if existing_member:
+                raise UserAlreadyMember
 
-        join_request.status = JoinRequestStatus.APPROVED
-        join_request.reviewed_by = owner.id
-        join_request.reviewed_at = datetime.now(timezone.utc).replace(tzinfo=None)
-
-        # Create team member
-        team_member = TeamMemberModel(
-            team_id=join_request.team_id,
-            user_id=join_request.requested_by,
-            role=TeamRole.MEMBER,
-        )
-        self.session.add(team_member)
-
-        await self.session.flush()
-
-        # Reload with relationships
-        join_request = await self.session.scalar(
-            select(JoinRequestModel)
-            .options(
-                joinedload(JoinRequestModel.team),
-                joinedload(JoinRequestModel.requester),
-                joinedload(JoinRequestModel.reviewer),
+            # Create team member
+            team_member = TeamMemberModel(
+                team_id=join_request.team_id,
+                user_id=join_request.requested_by,
+                role=TeamRole.MEMBER,
             )
-            .where(JoinRequestModel.id == request_id)
-        )
+            self.session.add(team_member)
 
-        return JoinRequestResponse(
-            id=join_request.id,
-            team_id=join_request.team_id,
-            team_name=join_request.team.name,
-            requested_by=join_request.requested_by,
-            requester_name=join_request.requester.name,
-            requester_email=join_request.requester.email,
-            status=join_request.status,
-            reviewed_by=join_request.reviewed_by,
-            reviewer_name=join_request.reviewer.name if join_request.reviewer else None,
-            reviewed_at=join_request.reviewed_at,
-            created_at=join_request.created_at,
-        )
-
-    #  MARK: - Reject Join Request
-    # *======================================== Reject Join Request ========================================
-    async def reject_join_request(
-        self, request_id: UUID, owner: UserModel
-    ) -> JoinRequestResponse:
-        """
-        Reject a join request.
-
-        Parameters:
-            request_id (UUID): The join request's unique identifier.
-            owner (UserModel): The team owner.
-
-        Returns:
-            JoinRequestResponse: Updated join request data.
-
-        Raises:
-            JoinRequestNotFound: If join request is not found.
-            UnauthorizedTeamAccess: If user is not OWNER.
-        """
-        join_request = await self.session.scalar(
-            select(JoinRequestModel)
-            .options(joinedload(JoinRequestModel.team))
-            .where(JoinRequestModel.id == request_id)
-        )
-
-        if not join_request:
-            raise JoinRequestNotFound
-
-        await self._validate_team_role(join_request.team_id, owner.id, [TeamRole.OWNER])
-
-        join_request.status = JoinRequestStatus.DECLINED
+        join_request.status = action
         join_request.reviewed_by = owner.id
         join_request.reviewed_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
@@ -796,13 +889,13 @@ class TeamService:
     # *======================================== List My Join Requests ========================================
     async def list_my_join_requests(self, user: UserModel) -> list[JoinRequestResponse]:
         """
-        List all join requests created by the user.
+        List all join requests created by the user, sorted by created_at descending (newest first).
 
         Parameters:
             user (UserModel): The authenticated user.
 
         Returns:
-            list[JoinRequestResponse]: List of join requests.
+            list[JoinRequestResponse]: List of join requests sorted by created_at descending.
         """
         join_requests = await self.session.scalars(
             select(JoinRequestModel)
@@ -812,6 +905,7 @@ class TeamService:
                 joinedload(JoinRequestModel.reviewer),
             )
             .where(JoinRequestModel.requested_by == user.id)
+            .order_by(JoinRequestModel.created_at.desc())
         )
 
         return [
@@ -830,69 +924,6 @@ class TeamService:
             )
             for req in join_requests
         ]
-
-    #  MARK: - Get Join Request By ID
-    # *======================================== Get Join Request By ID ========================================
-    async def get_join_request_by_id(
-        self, request_id: UUID, user: UserModel
-    ) -> JoinRequestResponse:
-        """
-        Get join request details by ID.
-
-        Parameters:
-            request_id (UUID): The join request's unique identifier.
-            user (UserModel): The authenticated user.
-
-        Returns:
-            JoinRequestResponse: Join request data.
-
-        Raises:
-            JoinRequestNotFound: If join request is not found.
-            UnauthorizedTeamAccess: If user is not OWNER or requester.
-        """
-        join_request = await self.session.scalar(
-            select(JoinRequestModel)
-            .options(
-                joinedload(JoinRequestModel.team),
-                joinedload(JoinRequestModel.requester),
-                joinedload(JoinRequestModel.reviewer),
-            )
-            .where(JoinRequestModel.id == request_id)
-        )
-
-        if not join_request:
-            raise JoinRequestNotFound
-
-        # Check if user is owner or requester
-        is_requester = join_request.requested_by == user.id
-        is_owner = False
-
-        if not is_requester:
-            team_member = await self.session.scalar(
-                select(TeamMemberModel).where(
-                    TeamMemberModel.team_id == join_request.team_id,
-                    TeamMemberModel.user_id == user.id,
-                    TeamMemberModel.role == TeamRole.OWNER,
-                )
-            )
-            is_owner = team_member is not None
-
-        if not is_requester and not is_owner:
-            raise UnauthorizedTeamAccess
-
-        return JoinRequestResponse(
-            id=join_request.id,
-            team_id=join_request.team_id,
-            team_name=join_request.team.name,
-            requested_by=join_request.requested_by,
-            requester_name=join_request.requester.name,
-            requester_email=join_request.requester.email,
-            status=join_request.status,
-            reviewed_by=join_request.reviewed_by,
-            reviewer_name=join_request.reviewer.name if join_request.reviewer else None,
-            reviewed_at=join_request.reviewed_at,
-            created_at=join_request.created_at,
-        )
 
     #  MARK: - Helper Methods
     # *======================================== Helper Methods ========================================
