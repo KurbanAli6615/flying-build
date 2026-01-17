@@ -168,8 +168,10 @@ async def generate_team_code(session: AsyncSession) -> str:
         str: A unique team code.
 
     Raises:
-        RuntimeError: If unable to generate a unique code after 3 attempts.
+        TeamAlreadyExists: If unable to generate a unique code after 3 attempts.
     """
+    from apps.team.exception import TeamAlreadyExists
+
     max_attempts = 3
     for _ in range(max_attempts):
         team_code = secrets.token_urlsafe(8)
@@ -178,4 +180,4 @@ async def generate_team_code(session: AsyncSession) -> str:
         )
         if not existing_team:
             return team_code
-    raise RuntimeError("Failed to generate unique team code after 3 attempts")
+    raise TeamAlreadyExists

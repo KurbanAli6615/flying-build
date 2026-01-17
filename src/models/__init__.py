@@ -3,4 +3,4 @@ from models.team import TeamModel
 from models.team_member import TeamMemberModel
 from models.user import UserModel
 
-__all__ = ["UserModel", "TeamModel", "TeamMemberModel", "JoinRequestModel"]
+__all__ = ["JoinRequestModel", "TeamMemberModel", "TeamModel", "UserModel"]

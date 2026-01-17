@@ -272,6 +272,9 @@ class UserService:
         if not name or len(name.strip()) < 2:
             raise InvalidNameException
 
+        if not username or not isinstance(username, str) or not username.strip():
+            raise InvalidUserNameException
+
         if not re.match(USERNAME, username):
             raise InvalidUserNameException
 

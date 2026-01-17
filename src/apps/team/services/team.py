@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import Depends, Request
 from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, load_only
 
@@ -12,6 +13,7 @@ from apps.team.exception import (
     DuplicateJoinRequest,
     InvalidTeamCode,
     JoinRequestNotFound,
+    TeamAlreadyExists,
     TeamDeactivated,
     TeamMemberNotFound,
     TeamNotFound,
@@ -59,13 +61,13 @@ class TeamService:
     #  MARK: - Create Team
     # *======================================== Create Team ========================================
     async def create_team(
-        self, request: Request, user: UserModel, data: CreateTeamRequest
+        self, _request: Request, user: UserModel, data: CreateTeamRequest
     ) -> TeamResponse:
         """
         Create a new team using data from the request on behalf of the given user.
 
         Parameters:
-            request (Request): HTTP request containing the team creation payload.
+            _request (Request): HTTP request containing the team creation payload (unused).
             user (UserModel): User performing the action; used for ownership.
             data (CreateTeamRequest): Team creation data.
 
@@ -86,7 +88,10 @@ class TeamService:
             status=TeamStatus.ACTIVE,
         )
         self.session.add(team)
-        await self.session.flush()
+        try:
+            await self.session.flush()
+        except IntegrityError:
+            raise TeamAlreadyExists
 
         team_member = TeamMemberModel(
             team_id=team.id, user_id=user.id, role=TeamRole.OWNER
@@ -698,6 +703,10 @@ class TeamService:
         if team.status == TeamStatus.DELETED:
             raise InvalidTeamCode
 
+        # Check if team is deactivated - users cannot join deactivated teams
+        if not team.is_active:
+            raise TeamDeactivated
+
         # Step 1: Check for duplicate PENDING request first
         # If there's a pending request, user must wait for it to be approved/rejected
         existing_pending_request = await self.session.scalar(
@@ -731,7 +740,10 @@ class TeamService:
             team_id=team.id, requested_by=user.id, status=JoinRequestStatus.PENDING
         )
         self.session.add(join_request)
-        await self.session.flush()
+        try:
+            await self.session.flush()
+        except IntegrityError:
+            raise DuplicateJoinRequest
 
         return JoinRequestResponse(
             id=join_request.id,

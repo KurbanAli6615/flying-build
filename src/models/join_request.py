@@ -30,6 +30,9 @@ class JoinRequestModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
     """
 
     __tablename__ = "join_requests"
+    # Note: A partial unique index is enforced at the database level via migration
+    # (uq_join_request_team_user_pending) that only applies to PENDING status.
+    # This allows historical duplicates (APPROVED/DECLINED) but prevents concurrent PENDING requests.
 
     team_id: Mapped[UUID] = mapped_column(ForeignKey("teams.id"), index=True)
     requested_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"), index=True)
