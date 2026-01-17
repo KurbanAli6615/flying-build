@@ -1,11 +1,17 @@
+from uuid import UUID
+
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column
+
 from core.db import Base
 from core.utils.mixins import TimeStampMixin, UUIDPrimaryKeyMixin
-from sqlalchemy.orm import Mapped, mapped_column
-from uuid import UUID
-from sqlalchemy import ForeignKey
 
 
 class TeamModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
+    """
+    Model for representing a team.
+    """
+
     __tablename__ = "teams"
 
     owner_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))

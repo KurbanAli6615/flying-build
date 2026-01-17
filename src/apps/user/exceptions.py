@@ -126,3 +126,27 @@ class InvalidRequestError(BadRequestError):
     """
 
     message = constants.INVALID_REQUEST
+
+
+class EmailRequiredException(BadRequestError):
+    """
+    Custom exception for email field required.
+    """
+
+    message = constants.EMAIL_FIELD_REQUIRED
+
+
+class PasswordRequiredException(BadRequestError):
+    """
+    Custom exception for password field required.
+    """
+
+    message = constants.PASSWORD_FIELD_REQUIRED
+
+
+class UserNotActiveException(BadRequestError):
+    """
+    Custom exception for user not active.
+    """
+
+    message = constants.USER_NOT_ACTIVE

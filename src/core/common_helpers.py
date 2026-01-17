@@ -17,6 +17,7 @@ from apps.user.exceptions import (
     InvalidEmailException,
     InvalidEncryptedData,
 )
+from apps.user.schemas import TokensResponse
 from config import settings
 from core.auth import access, admin_access, admin_refresh, refresh
 from core.exceptions import InvalidRoleException
@@ -25,21 +26,27 @@ from core.types import RoleType
 
 async def create_password():
     """
-    Create a random password.
-
-    :return: A randomly generated password.
+    Generate a URL-safe random password.
+    
+    Returns:
+        str: A URL-safe random string suitable for use as a password.
     """
     return secrets.token_urlsafe(15)
 
 
-async def create_tokens(user_id: UUID, role: RoleType) -> dict[str, str]:
+async def create_tokens(user_id: UUID, role: RoleType) -> TokensResponse:
     """
-    Create access-token and refresh-token for a user.
-
-    Args:
-        role:
-        user_id:
-    :return: A dictionary containing access-token and refresh-token.
+    Create access and refresh tokens for a user based on their role.
+    
+    Parameters:
+        user_id (UUID): The user's unique identifier to embed in token payloads.
+        role (RoleType): The user's role; determines which encoder pair (user or admin) is used.
+    
+    Returns:
+        TokensResponse: An object containing `access_token` and `refresh_token` strings.
+    
+    Raises:
+        InvalidRoleException: If `role` is not `RoleType.USER` or `RoleType.ADMIN`.
     """
     if role == RoleType.USER:
         access_token = access.encode(
@@ -58,14 +65,21 @@ async def create_tokens(user_id: UUID, role: RoleType) -> dict[str, str]:
     else:
         raise InvalidRoleException
 
-    return {"access_token": access_token, "refresh_token": refresh_token}
+    return TokensResponse(access_token=access_token, refresh_token=refresh_token)
 
 
 def validate_string_fields(values) -> dict:
     """
-    Validate string fields for empty strings.
-    :param values: Values to be validated.
-    :return: Received values.
+    Ensure string values in a mapping are not empty.
+    
+    Parameters:
+        values (Mapping[str, Any]): Mapping of field names to their values to validate.
+    
+    Returns:
+        dict: The original mapping of values.
+    
+    Raises:
+        EmptyDescriptionException: If any value is a string that is empty or contains only whitespace.
     """
     for field_name, value in values.items():
         if isinstance(value, str) and not value.strip():

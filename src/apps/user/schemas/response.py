@@ -3,6 +3,15 @@ from uuid import UUID
 from core.utils import CamelCaseModel
 
 
+class TokensResponse(CamelCaseModel):
+    """
+    Response object for tokens.
+    """
+
+    access_token: str
+    refresh_token: str
+
+
 class BaseUserResponse(CamelCaseModel):
     """
     Base response object for user information.
@@ -20,4 +29,3 @@ class BaseUserResponse(CamelCaseModel):
     country_code: str
     phone: str
     role: str
-    is_active: bool

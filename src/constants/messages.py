@@ -38,6 +38,8 @@ ADMIN_REFRESH = "admin_refresh"
 
 USER_NOT_FOUND = "User not found"
 
+USER_CREATED = "User created successfully!"
+
 INVALID_ROLE = "Invalid role"
 
 DESCRIPTION = "Please provide a description."
@@ -51,6 +53,8 @@ INVALID_REQUEST = "Invalid request."
 EMAIL_FIELD_REQUIRED = "Email field is required."
 
 PASSWORD_FIELD_REQUIRED = "Password field is required."
+
+USER_NOT_ACTIVE = "User is not active."
 
 INVALID_NAME = "Name must not be an empty string."
 

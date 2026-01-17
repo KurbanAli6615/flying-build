@@ -1,3 +1,3 @@
-from apps.user.schemas.response import BaseUserResponse
+from apps.user.schemas.response import BaseUserResponse, TokensResponse
 
-__all__ = ["BaseUserResponse"]
+__all__ = ["BaseUserResponse", "TokensResponse"]

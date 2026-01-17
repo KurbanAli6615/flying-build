@@ -5,8 +5,8 @@ from fastapi_limiter.depends import RateLimiter
 
 import constants
 from apps.handlers import start_exception_handlers
-from apps.user.controllers import user_router
 from apps.team.controller import team_router
+from apps.user.controllers import user_router
 from config import AppEnvironment, settings
 from constants.config import rate_limiter_config
 from core.data_encrypt.controller import data_decrypt_router

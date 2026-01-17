@@ -1,3 +1,4 @@
+from constants.config import PAYLOAD_TIMEOUT, rate_limiter_config
 from constants.messages import (
     ACCESS,
     ADMIN_ACCESS,
@@ -26,14 +27,15 @@ from constants.messages import (
     SOMETHING_WENT_WRONG,
     SUCCESS,
     UNAUTHORIZED,
+    USER_CREATED,
     USER_IS_UNDERAGE,
+    USER_NOT_ACTIVE,
     USER_NOT_FOUND,
     WEAK_PASSWORD,
     WEBHOOK_FAILED,
     WEBHOOK_SUCCESSFUL,
 )
 from constants.regex import EMAIL_REGEX
-from constants.config import rate_limiter_config, PAYLOAD_TIMEOUT
 
 __all__ = [
     "EXPIRED_TOKEN",
@@ -71,4 +73,6 @@ __all__ = [
     "INVALID_ROLE_VALUE",
     "rate_limiter_config",
     "PAYLOAD_TIMEOUT",
+    "USER_CREATED",
+    "USER_NOT_ACTIVE",
 ]
