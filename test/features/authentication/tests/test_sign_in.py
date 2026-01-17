@@ -1,7 +1,6 @@
 """
 Test file for POST /user/sign-in API endpoint.
 """
-from rich.console import Console
 
 from test.features.authentication import helpers as auth_helpers
 from test.utils.validators import (
@@ -9,6 +8,8 @@ from test.utils.validators import (
     validate_json_response,
     validate_status_code,
 )
+
+from rich.console import Console
 
 console = Console()
 
@@ -36,9 +37,14 @@ async def test_sign_in_user_1(test_instance) -> None:
     validate_status_code(response, 200)
 
     # Validate response structure (no need to check status/code fields - we only rely on HTTP status code)
+    # Note: API returns snake_case: access_token, refresh_token (not camelCase)
     response_data = validate_json_response(response)
-    assert_response_contains(response_data, "data.accessToken", str, api_client=test_instance.api_client)
-    assert_response_contains(response_data, "data.refreshToken", str, api_client=test_instance.api_client)
+    assert_response_contains(
+        response_data, "data.access_token", str, api_client=test_instance.api_client
+    )
+    assert_response_contains(
+        response_data, "data.refresh_token", str, api_client=test_instance.api_client
+    )
 
     # Extract and store tokens
     test_instance.user_1_tokens = auth_helpers.extract_auth_tokens(response_data)
@@ -73,9 +79,14 @@ async def test_sign_in_user_2(test_instance) -> None:
     validate_status_code(response, 200)
 
     # Validate response structure (no need to check status/code fields - we only rely on HTTP status code)
+    # Note: API returns snake_case: access_token, refresh_token (not camelCase)
     response_data = validate_json_response(response)
-    assert_response_contains(response_data, "data.accessToken", str, api_client=test_instance.api_client)
-    assert_response_contains(response_data, "data.refreshToken", str, api_client=test_instance.api_client)
+    assert_response_contains(
+        response_data, "data.access_token", str, api_client=test_instance.api_client
+    )
+    assert_response_contains(
+        response_data, "data.refresh_token", str, api_client=test_instance.api_client
+    )
 
     # Extract and store tokens
     test_instance.user_2_tokens = auth_helpers.extract_auth_tokens(response_data)

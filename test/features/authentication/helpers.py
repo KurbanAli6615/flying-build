@@ -62,9 +62,10 @@ def extract_auth_tokens(response_data: dict) -> dict[str, str]:
         dict: Dictionary with access_token and refresh_token
     """
     data = response_data.get("data", {})
+    # API returns snake_case: access_token, refresh_token (not camelCase)
     return {
-        "access_token": data.get("accessToken", ""),
-        "refresh_token": data.get("refreshToken", ""),
+        "access_token": data.get("access_token", ""),
+        "refresh_token": data.get("refresh_token", ""),
     }
 
 
