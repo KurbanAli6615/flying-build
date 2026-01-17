@@ -29,6 +29,7 @@ from constants.messages import (
     UNAUTHORIZED,
     USER_CREATED,
     USER_IS_UNDERAGE,
+    USER_NOT_ACTIVE,
     USER_NOT_FOUND,
     WEAK_PASSWORD,
     WEBHOOK_FAILED,
@@ -73,4 +74,5 @@ __all__ = [
     "rate_limiter_config",
     "PAYLOAD_TIMEOUT",
     "USER_CREATED",
+    "USER_NOT_ACTIVE",
 ]

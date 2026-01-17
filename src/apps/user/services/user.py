@@ -9,19 +9,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
 import constants
-from apps.exceptions import EmailRequiredException, PasswordRequiredException
 from apps.user.exceptions import (
     DuplicateEmailException,
+    EmailRequiredException,
     InvalidCountryCodeException,
     InvalidCredentialsException,
     InvalidEmailException,
     InvalidNameException,
     InvalidPhoneFormatException,
     InvalidUserNameException,
+    PasswordRequiredException,
+    UserNotActiveException,
     UserNotFoundException,
     WeakPasswordException,
 )
-from apps.user.schemas import TokensResponse
+from apps.user.schemas import BaseUserResponse, TokensResponse
 from constants.regex import COUNTRY_CODE, EMAIL_REGEX, NAME, PHONE_REGEX, USERNAME
 from core.common_helpers import create_tokens, decrypt
 from core.db import db_session
@@ -51,7 +53,7 @@ class UserService:
 
     #  MARK: - Get Self
     # *======================================== Get Self ========================================
-    async def get_self(self, user_id: UUID) -> UserModel:
+    async def get_self(self, user_id: UUID) -> BaseUserResponse:
         """
         Retrieve user information by user ID.
 
@@ -61,7 +63,7 @@ class UserService:
         Returns:
             UserModel: The user model with the user's information.
         """
-        return await self.session.scalar(
+        user = await self.session.scalar(
             select(UserModel)
             .options(
                 load_only(
@@ -76,6 +78,22 @@ class UserService:
                 )
             )
             .where(UserModel.id == user_id)
+        )
+
+        if not user:
+            raise UserNotFoundException
+
+        if not user.is_active:
+            raise UserNotActiveException
+
+        return BaseUserResponse(
+            id=user.id,
+            email=user.email,
+            name=user.name,
+            username=user.username,
+            country_code=user.country_code,
+            phone=user.phone,
+            role=user.role,
         )
 
     #  MARK: - Login User

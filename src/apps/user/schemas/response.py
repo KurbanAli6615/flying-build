@@ -29,5 +29,3 @@ class BaseUserResponse(CamelCaseModel):
     country_code: str
     phone: str
     role: str
-    is_active: bool
-    tokens: TokensResponse

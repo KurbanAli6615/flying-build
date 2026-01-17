@@ -54,6 +54,8 @@ EMAIL_FIELD_REQUIRED = "Email field is required."
 
 PASSWORD_FIELD_REQUIRED = "Password field is required."
 
+USER_NOT_ACTIVE = "User is not active."
+
 INVALID_NAME = "Name must not be an empty string."
 
 INVALID_USERNAME = (
