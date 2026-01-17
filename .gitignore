@@ -8,3 +8,5 @@ public_key.pem
 private_key.pem
 .env.*
 *.pem
+/frontend/
+/mobile/
