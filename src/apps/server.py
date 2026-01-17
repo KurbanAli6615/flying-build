@@ -6,6 +6,7 @@ from fastapi_limiter.depends import RateLimiter
 import constants
 from apps.handlers import start_exception_handlers
 from apps.user.controllers import user_router
+from apps.team.controller import team_router
 from config import AppEnvironment, settings
 from constants.config import rate_limiter_config
 from core.data_encrypt.controller import data_decrypt_router
@@ -32,6 +33,7 @@ def init_routers(_app: FastAPI) -> None:
     )
     base_router.include_router(data_decrypt_router)
     base_router.include_router(user_router)
+    base_router.include_router(team_router)
 
     _app.include_router(base_router, responses={422: {"model": BaseValidationResponse}})
 

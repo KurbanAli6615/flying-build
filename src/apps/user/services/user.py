@@ -21,7 +21,8 @@ from apps.user.exceptions import (
     WeakPasswordException,
 )
 from constants.regex import COUNTRY_CODE, EMAIL_REGEX, NAME, PHONE_REGEX, USERNAME
-from core.common_helpers import create_tokens, decrypt, strong_password
+from core.common_helpers import create_tokens, decrypt
+from core.utils.password import strong_password
 from core.db import db_session
 from core.exceptions import BadRequestError
 from core.types import RoleType
@@ -46,6 +47,8 @@ class UserService:
         """
         self.session = session
 
+    #  MARK: - Get Self
+    # *======================================== Get Self ========================================
     async def get_self(self, user_id: UUID) -> UserModel:
         """
         Retrieve user information by user ID.
@@ -73,6 +76,8 @@ class UserService:
             .where(UserModel.id == user_id)
         )
 
+    #  MARK: - Login User
+    # *======================================== Login User ========================================
     async def login_user(
         self, request: Request, encrypted_data: str, encrypted_key: str, iv: str
     ) -> dict[str, str]:
@@ -125,6 +130,8 @@ class UserService:
 
         return await create_tokens(user_id=user.id, role=user.role)
 
+    #  MARK: - Create User
+    # *======================================== Create User ========================================
     async def create_user(
         self, request: Request, encrypted_data: str, encrypted_key: str, iv: str
     ):
@@ -234,6 +241,8 @@ class UserService:
         if not strong_password(password):
             raise WeakPasswordException
 
+    #  MARK: - Get User by ID
+    # *======================================== Get User by ID ========================================
     async def get_user_by_id(self, user_id: UUID):
         """
         Retrieve a user by their ID.
