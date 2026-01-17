@@ -17,6 +17,7 @@ from apps.user.exceptions import (
     InvalidEmailException,
     InvalidEncryptedData,
 )
+from apps.user.schemas import TokensResponse
 from config import settings
 from core.auth import access, admin_access, admin_refresh, refresh
 from core.exceptions import InvalidRoleException
@@ -32,7 +33,7 @@ async def create_password():
     return secrets.token_urlsafe(15)
 
 
-async def create_tokens(user_id: UUID, role: RoleType) -> dict[str, str]:
+async def create_tokens(user_id: UUID, role: RoleType) -> TokensResponse:
     """
     Create access-token and refresh-token for a user.
 
@@ -58,7 +59,7 @@ async def create_tokens(user_id: UUID, role: RoleType) -> dict[str, str]:
     else:
         raise InvalidRoleException
 
-    return {"access_token": access_token, "refresh_token": refresh_token}
+    return TokensResponse(access_token=access_token, refresh_token=refresh_token)
 
 
 def validate_string_fields(values) -> dict:

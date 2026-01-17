@@ -21,12 +21,14 @@ from apps.user.exceptions import (
     UserNotFoundException,
     WeakPasswordException,
 )
+from apps.user.schemas import TokensResponse
 from constants.regex import COUNTRY_CODE, EMAIL_REGEX, NAME, PHONE_REGEX, USERNAME
 from core.common_helpers import create_tokens, decrypt
 from core.db import db_session
 from core.types import RoleType
 from core.utils.hashing import hash_password, verify_password
 from core.utils.password import strong_password
+from core.utils.schema import SuccessResponse
 from models import UserModel
 
 
@@ -80,7 +82,7 @@ class UserService:
     # *======================================== Login User ========================================
     async def login_user(
         self, request: Request, encrypted_data: str, encrypted_key: str, iv: str
-    ) -> dict[str, str]:
+    ) -> TokensResponse:
         """
          Log in a user and generate authentication tokens.
 
@@ -101,8 +103,6 @@ class UserService:
             enc_data=encrypted_data,
             encrypt_key=encrypted_key,
             iv_input=iv,
-            time_check=True,
-            timeout=constants.PAYLOAD_TIMEOUT,
         )
         decrypted_data = json.loads(decrypted_data)
 
@@ -128,13 +128,15 @@ class UserService:
         if not verify:
             raise InvalidCredentialsException
 
-        return await create_tokens(user_id=user.id, role=user.role)
+        tokens = await create_tokens(user_id=user.id, role=user.role)
+
+        return tokens
 
     #  MARK: - Create User
     # *======================================== Create User ========================================
     async def create_user(
         self, request: Request, encrypted_data: str, encrypted_key: str, iv: str
-    ):
+    ) -> SuccessResponse:
         """
         Create a new user.
 
@@ -169,7 +171,7 @@ class UserService:
         email = decrypted_data.get("email")
         password = decrypted_data.get("password")
 
-        self.validate_input_fields(
+        self._validate_input_fields(
             name=name,
             username=username,
             country_code=country_code,
@@ -197,9 +199,12 @@ class UserService:
             role=RoleType.USER,
         )
         self.session.add(user)
-        return user
 
-    async def validate_input_fields(
+        return SuccessResponse(message=constants.USER_CREATED)
+
+    #  MARK: - Validate Sign up Fields
+    # *======================================== Validate Sign up Fields ========================================
+    def _validate_input_fields(
         self,
         name: str,
         username: str,

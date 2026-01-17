@@ -38,6 +38,8 @@ ADMIN_REFRESH = "admin_refresh"
 
 USER_NOT_FOUND = "User not found"
 
+USER_CREATED = "User created successfully!"
+
 INVALID_ROLE = "Invalid role"
 
 DESCRIPTION = "Please provide a description."

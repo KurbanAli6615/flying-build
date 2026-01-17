@@ -27,6 +27,7 @@ from constants.messages import (
     SOMETHING_WENT_WRONG,
     SUCCESS,
     UNAUTHORIZED,
+    USER_CREATED,
     USER_IS_UNDERAGE,
     USER_NOT_FOUND,
     WEAK_PASSWORD,
@@ -71,4 +72,5 @@ __all__ = [
     "INVALID_ROLE_VALUE",
     "rate_limiter_config",
     "PAYLOAD_TIMEOUT",
+    "USER_CREATED",
 ]
