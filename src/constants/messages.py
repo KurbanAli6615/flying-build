@@ -23,6 +23,8 @@ INVALID_PHONE_NUMBER = "Invalid phone number format"
 WEAK_PASSWORD = "Please enter a strong password!"
 
 DUPLICATE_EMAIL = "Account already exists."
+DUPLICATE_PHONE = "Phone number already exists."
+DUPLICATE_USERNAME = "Username already exists."
 
 INVALID_CREDS = "Invalid credentials"
 
@@ -69,3 +71,24 @@ PHONE_REGEX = "Invalid phone number format."
 INVALID_IS_ACTIVE = "Is active must be a boolean value."
 
 INVALID_ROLE_VALUE = "Role value must be a valid role value."
+
+# Team-related messages
+TEAM_NOT_FOUND = "Team not found"
+TEAM_ALREADY_EXISTS = "Team with this code already exists"
+TEAM_MEMBER_NOT_FOUND = "Team member not found"
+UNAUTHORIZED_TEAM_ACCESS = "Unauthorized access to team"
+JOIN_REQUEST_NOT_FOUND = "Join request not found"
+DUPLICATE_JOIN_REQUEST = "Pending join request already exists"
+INVALID_TEAM_CODE = "Invalid team code"
+CANNOT_MODIFY_OWNER = "Cannot modify owner role"
+USER_ALREADY_MEMBER = "User is already a team member"
+TEAM_CREATED = "Team created successfully"
+TEAM_UPDATED = "Team updated successfully"
+JOIN_REQUEST_CREATED = "Join request created successfully"
+JOIN_REQUEST_APPROVED = "Join request approved successfully"
+JOIN_REQUEST_REJECTED = "Join request rejected successfully"
+USER_PROMOTED_TO_ADMIN = "User promoted to admin successfully"
+USER_DEMOTED_FROM_ADMIN = "User demoted from admin successfully"
+TEAM_DEACTIVATED = "Team has been deactivated"
+TEAM_ACTIVATED = "Team has been activated"
+TEAM_STATUS_UPDATED = "Team status updated successfully"

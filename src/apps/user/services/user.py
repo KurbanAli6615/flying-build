@@ -11,6 +11,8 @@ from sqlalchemy.orm import load_only
 import constants
 from apps.user.exceptions import (
     DuplicateEmailException,
+    DuplicatePhoneException,
+    DuplicateUsernameException,
     EmailRequiredException,
     InvalidCountryCodeException,
     InvalidCredentialsException,
@@ -56,13 +58,13 @@ class UserService:
     async def get_self(self, user_id: UUID) -> BaseUserResponse:
         """
         Retrieve the current user's public profile by user ID.
-        
+
         Parameters:
             user_id (UUID): The UUID of the user to retrieve.
-        
+
         Returns:
             BaseUserResponse: Object containing id, email, name, username, country_code, phone, and role.
-        
+
         Raises:
             UserNotFoundException: If no user exists with the given ID.
             UserNotActiveException: If the user exists but is not active.
@@ -107,17 +109,17 @@ class UserService:
     ) -> TokensResponse:
         """
         Authenticate a user from RSA-encrypted credentials and return issued authentication tokens.
-        
+
         Decrypts the provided payload to obtain email and password, validates presence of both fields, verifies credentials, and returns the generated tokens.
-        
+
         Parameters:
             encrypted_data (str): RSA-encrypted JSON payload containing `email` and `password`.
             encrypted_key (str): RSA-encrypted key used to encrypt the payload.
             iv (str): Initialization vector used during encryption.
-        
+
         Returns:
             TokensResponse: Contains issued authentication tokens (e.g., `access_token` and `refresh_token`).
-        
+
         Raises:
             EmailRequiredException: If the decrypted payload does not include an email.
             PasswordRequiredException: If the decrypted payload does not include a password.
@@ -165,18 +167,20 @@ class UserService:
     ) -> SuccessResponse:
         """
         Create a new user account from RSA-encrypted payload and return a success message.
-        
+
         Parameters:
             request (Request): FastAPI request object containing the application's RSA key at request.app.state.rsa_key.
             encrypted_data (str): RSA-encrypted JSON payload containing user fields (`name`, `username`, `country_code`, `phone`, `email`, `password`).
             encrypted_key (str): Encrypted symmetric key used to decrypt `encrypted_data`.
             iv (str): Initialization vector for symmetric decryption.
-        
+
         Returns:
             SuccessResponse: Response containing a success message indicating the user was created.
-        
+
         Raises:
             DuplicateEmailException: If a user with the provided email already exists.
+            DuplicatePhoneException: If a user with the provided phone number already exists.
+            DuplicateUsernameException: If a user with the provided username already exists.
             InvalidNameException, InvalidUserNameException, InvalidCountryCodeException, InvalidPhoneFormatException, InvalidEmailException, WeakPasswordException:
                 If any of the corresponding input validations fail during field validation.
         """
@@ -204,13 +208,25 @@ class UserService:
             password=password,
         )
 
-        user = await self.session.scalar(
+        # Check for duplicate email, phone, or username
+        existing_user = await self.session.scalar(
             select(UserModel)
-            .options(load_only(UserModel.email, UserModel.username))
-            .where(or_(UserModel.email == email))
+            .options(load_only(UserModel.email, UserModel.username, UserModel.phone))
+            .where(
+                or_(
+                    UserModel.email == email,
+                    UserModel.phone == phone,
+                    UserModel.username == username,
+                )
+            )
         )
-        if user:
-            raise DuplicateEmailException
+        if existing_user:
+            if existing_user.email == email:
+                raise DuplicateEmailException
+            if existing_user.phone == phone:
+                raise DuplicatePhoneException
+            if existing_user.username == username:
+                raise DuplicateUsernameException
 
         user = UserModel.create(
             name=name,
@@ -239,10 +255,10 @@ class UserService:
     ):
         """
         Validate user signup input fields and raise specific exceptions for any invalid value.
-        
+
         Each argument is checked against the service's required format or policy and a
         corresponding exception is raised when validation fails.
-        
+
         Raises:
             InvalidNameException: If `name` does not match the required name pattern.
             InvalidUserNameException: If `username` does not match the required username pattern.
