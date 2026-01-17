@@ -22,11 +22,11 @@ from apps.user.exceptions import (
 )
 from constants.regex import COUNTRY_CODE, EMAIL_REGEX, NAME, PHONE_REGEX, USERNAME
 from core.common_helpers import create_tokens, decrypt
-from core.utils.password import strong_password
 from core.db import db_session
 from core.exceptions import BadRequestError
 from core.types import RoleType
 from core.utils.hashing import hash_password, verify_password
+from core.utils.password import strong_password
 from models import UserModel
 
 

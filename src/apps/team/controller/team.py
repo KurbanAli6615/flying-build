@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Request
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Request
 from starlette import status
 
-from core.utils.schema import BaseResponse
 from core.auth import HasPermission
 from core.types import RoleType
+from core.utils.schema import BaseResponse
 from models import UserModel
-from fastapi import Depends
-from typing import Annotated
+
 from ..services.team import TeamService
 
 router = APIRouter(prefix="/team", tags=["Team"])
@@ -24,4 +25,15 @@ async def create_team(
     user: Annotated[UserModel, Depends(HasPermission(RoleType.USER))],
     service: Annotated[TeamService, Depends()],
 ) -> BaseResponse:
+    """
+    Create a new team.
+
+    Args:
+        request: The request object.
+        user: The user object.
+        service: The team service.
+
+    Returns:
+        BaseResponse: The response object.
+    """
     return await service.create_team(request, user)

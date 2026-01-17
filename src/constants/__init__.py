@@ -1,3 +1,4 @@
+from constants.config import PAYLOAD_TIMEOUT, rate_limiter_config
 from constants.messages import (
     ACCESS,
     ADMIN_ACCESS,
@@ -33,7 +34,6 @@ from constants.messages import (
     WEBHOOK_SUCCESSFUL,
 )
 from constants.regex import EMAIL_REGEX
-from constants.config import rate_limiter_config, PAYLOAD_TIMEOUT
 
 __all__ = [
     "EXPIRED_TOKEN",
