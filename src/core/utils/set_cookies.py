@@ -1,11 +1,12 @@
 from fastapi.responses import JSONResponse
 
+from apps.user.schemas import TokensResponse
 from config import settings
 from core.types import RoleType
 
 
 def set_auth_cookies(
-    response: JSONResponse, tokens: dict[str, str], role: RoleType
+    response: JSONResponse, tokens: TokensResponse, role: RoleType
 ) -> JSONResponse:
     """
     Set authentication cookies in an HTTP response.
@@ -28,26 +29,26 @@ def set_auth_cookies(
     if role == RoleType.USER:
         response.set_cookie(
             "accessToken",
-            tokens["access_token"],
+            tokens.access_token,
             expires=int(settings.ACCESS_TOKEN_EXP),
             **cookies_params,
         )
         response.set_cookie(
             "refreshToken",
-            tokens["refresh_token"],
+            tokens.refresh_token,
             expires=int(settings.REFRESH_TOKEN_EXP),
             **cookies_params,
         )
     if role == RoleType.ADMIN:
         response.set_cookie(
             "adminAccessToken",
-            tokens["access_token"],
+            tokens.access_token,
             expires=int(settings.ACCESS_TOKEN_EXP),
             **cookies_params,
         )
         response.set_cookie(
             "adminRefreshToken",
-            tokens["refresh_token"],
+            tokens.refresh_token,
             expires=int(settings.REFRESH_TOKEN_EXP),
             **cookies_params,
         )

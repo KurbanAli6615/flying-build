@@ -41,10 +41,14 @@ async def sign_in(
     """
 
     res = await service.login_user(request=request, **body.model_dump())
-    if res.access_token in res:
-        data = {"status": constants.SUCCESS, "code": status.HTTP_200_OK, "data": res}
-        response = JSONResponse(content=data)
-        return set_auth_cookies(response, res, RoleType.USER)
+    data = {
+        "status": constants.SUCCESS,
+        "code": status.HTTP_200_OK,
+        "data": res.model_dump(),
+    }
+    response = JSONResponse(content=data)
+    set_auth_cookies(response, res, RoleType.USER)
+    return response
 
 
 @router.post(
