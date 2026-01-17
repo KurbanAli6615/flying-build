@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
 import constants
+from apps.exceptions import EmailRequiredException, PasswordRequiredException
 from apps.user.exceptions import (
     DuplicateEmailException,
     InvalidCountryCodeException,
@@ -23,7 +24,6 @@ from apps.user.exceptions import (
 from constants.regex import COUNTRY_CODE, EMAIL_REGEX, NAME, PHONE_REGEX, USERNAME
 from core.common_helpers import create_tokens, decrypt
 from core.db import db_session
-from core.exceptions import BadRequestError
 from core.types import RoleType
 from core.utils.hashing import hash_password, verify_password
 from core.utils.password import strong_password
@@ -110,10 +110,10 @@ class UserService:
         password = decrypted_data.get("password")
 
         if email is None:
-            raise BadRequestError(message=constants.EMAIL_FIELD_REQUIRED)
+            raise EmailRequiredException
 
         if password is None:
-            raise BadRequestError(message=constants.PASSWORD_FIELD_REQUIRED)
+            raise PasswordRequiredException
 
         user = await self.session.scalar(
             select(UserModel).where(
