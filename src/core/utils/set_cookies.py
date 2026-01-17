@@ -19,12 +19,26 @@ def set_auth_cookies(
     Returns:
         Response: The updated HTTP response with the authentication cookies set.
     """
-    cookies_params = {
+
+    production_cookies_params = {
         "domain": settings.COOKIES_DOMAIN,
         "secure": True,
         "samesite": "lax" if settings.is_production else "none",
         "httponly": True,
     }
+
+    development_cookies_params = {
+        "domain": settings.COOKIES_DOMAIN,
+        "secure": False,
+        "samesite": "lax",
+        "httponly": True,
+    }
+
+    cookies_params = (
+        production_cookies_params
+        if settings.is_production
+        else development_cookies_params
+    )
 
     if role == RoleType.USER:
         response.set_cookie(
