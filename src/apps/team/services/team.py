@@ -241,9 +241,8 @@ class TeamService:
             select(TeamModel).where(TeamModel.id == team_id)
         )
 
-        # Check if team is deleted
-        if team.status == TeamStatus.DELETED:
-            raise TeamNotFound
+        # Check if team is deleted (raise TeamNotFound to hide soft delete)
+        self._check_team_not_deleted(team)
 
         # Check if team is deactivated and user is MEMBER
         if not team.is_active and team_member.role == TeamRole.MEMBER:
@@ -308,6 +307,9 @@ class TeamService:
 
         if not team:
             raise TeamNotFound
+
+        # Check if team is deleted (raise TeamNotFound to hide soft delete)
+        self._check_team_not_deleted(team)
 
         team_member = await self._validate_team_role(
             team_id, user.id, [TeamRole.OWNER, TeamRole.ADMIN]
@@ -375,12 +377,15 @@ class TeamService:
         """
         team = await self.session.scalar(
             select(TeamModel)
-            .options(load_only(TeamModel.id, TeamModel.is_active))
+            .options(load_only(TeamModel.id, TeamModel.is_active, TeamModel.status))
             .where(TeamModel.id == team_id)
         )
 
         if not team:
             raise TeamNotFound
+
+        # Check if team is deleted (raise TeamNotFound to hide soft delete)
+        self._check_team_not_deleted(team)
 
         await self._validate_team_role(team_id, owner.id, [TeamRole.OWNER])
 
@@ -444,12 +449,15 @@ class TeamService:
         """
         team = await self.session.scalar(
             select(TeamModel)
-            .options(load_only(TeamModel.id))
+            .options(load_only(TeamModel.id, TeamModel.status))
             .where(TeamModel.id == team_id)
         )
 
         if not team:
             raise TeamNotFound
+
+        # Check if team is deleted (raise TeamNotFound to hide soft delete)
+        self._check_team_not_deleted(team)
 
         # Validate user is a team member (any role)
         await self._validate_team_membership(team_id, user.id)
@@ -495,12 +503,15 @@ class TeamService:
         """
         team = await self.session.scalar(
             select(TeamModel)
-            .options(load_only(TeamModel.id))
+            .options(load_only(TeamModel.id, TeamModel.status))
             .where(TeamModel.id == team_id)
         )
 
         if not team:
             raise TeamNotFound
+
+        # Check if team is deleted (raise TeamNotFound to hide soft delete)
+        self._check_team_not_deleted(team)
 
         await self._validate_team_role(team_id, owner.id, [TeamRole.OWNER])
 
@@ -548,12 +559,15 @@ class TeamService:
         """
         team = await self.session.scalar(
             select(TeamModel)
-            .options(load_only(TeamModel.id))
+            .options(load_only(TeamModel.id, TeamModel.status))
             .where(TeamModel.id == team_id)
         )
 
         if not team:
             raise TeamNotFound
+
+        # Check if team is deleted (raise TeamNotFound to hide soft delete)
+        self._check_team_not_deleted(team)
 
         await self._validate_team_role(team_id, owner.id, [TeamRole.OWNER])
 
@@ -602,12 +616,15 @@ class TeamService:
         """
         team = await self.session.scalar(
             select(TeamModel)
-            .options(load_only(TeamModel.id))
+            .options(load_only(TeamModel.id, TeamModel.status))
             .where(TeamModel.id == team_id)
         )
 
         if not team:
             raise TeamNotFound
+
+        # Check if team is deleted (raise TeamNotFound to hide soft delete)
+        self._check_team_not_deleted(team)
 
         await self._validate_team_role(team_id, owner.id, [TeamRole.OWNER])
 
@@ -756,12 +773,15 @@ class TeamService:
         """
         team = await self.session.scalar(
             select(TeamModel)
-            .options(load_only(TeamModel.id, TeamModel.name))
+            .options(load_only(TeamModel.id, TeamModel.name, TeamModel.status))
             .where(TeamModel.id == team_id)
         )
 
         if not team:
             raise TeamNotFound
+
+        # Check if team is deleted (raise TeamNotFound to hide soft delete)
+        self._check_team_not_deleted(team)
 
         await self._validate_team_role(team_id, owner.id, [TeamRole.OWNER])
 
@@ -831,6 +851,9 @@ class TeamService:
 
         if not join_request:
             raise JoinRequestNotFound
+
+        # Check if team is deleted (raise TeamNotFound to hide soft delete)
+        self._check_team_not_deleted(join_request.team)
 
         await self._validate_team_role(join_request.team_id, owner.id, [TeamRole.OWNER])
 
@@ -998,3 +1021,18 @@ class TeamService:
             raise UnauthorizedTeamAccess
 
         return team_member
+
+    def _check_team_not_deleted(self, team: TeamModel) -> None:
+        """
+        Check if team is deleted and raise TeamNotFound if so.
+
+        This hides the fact that the team exists but is deleted (soft delete).
+
+        Parameters:
+            team (TeamModel): The team to check.
+
+        Raises:
+            TeamNotFound: If team is deleted.
+        """
+        if team.status == TeamStatus.DELETED:
+            raise TeamNotFound
