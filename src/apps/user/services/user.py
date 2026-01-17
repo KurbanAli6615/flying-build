@@ -27,7 +27,7 @@ from apps.user.exceptions import (
 )
 from apps.user.schemas import BaseUserResponse, PublicKeyResponse, TokensResponse
 from config import settings
-from constants.regex import COUNTRY_CODE, EMAIL_REGEX, NAME, PHONE_REGEX, USERNAME
+from constants.regex import COUNTRY_CODE, EMAIL_REGEX, PHONE_REGEX, USERNAME
 from core.common_helpers import create_tokens, decrypt
 from core.db import db_session
 from core.types import RoleType
@@ -269,10 +269,10 @@ class UserService:
             WeakPasswordException: If `password` does not satisfy the configured strength requirements.
         """
 
-        if not re.search(NAME, name, re.I):
+        if not name or len(name.strip()) < 2:
             raise InvalidNameException
 
-        if not re.search(USERNAME, username, re.I):
+        if not re.match(USERNAME, username):
             raise InvalidUserNameException
 
         if not re.search(COUNTRY_CODE, country_code, re.I):
