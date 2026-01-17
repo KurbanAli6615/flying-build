@@ -25,7 +25,8 @@ from apps.user.exceptions import (
     UserNotFoundException,
     WeakPasswordException,
 )
-from apps.user.schemas import BaseUserResponse, TokensResponse
+from apps.user.schemas import BaseUserResponse, PublicKeyResponse, TokensResponse
+from config import settings
 from constants.regex import COUNTRY_CODE, EMAIL_REGEX, NAME, PHONE_REGEX, USERNAME
 from core.common_helpers import create_tokens, decrypt
 from core.db import db_session
@@ -319,3 +320,23 @@ class UserService:
         if not searched_user:
             raise UserNotFoundException
         return searched_user
+
+    #  MARK: - Get Public Key
+    # *======================================== Get Public Key ========================================
+    async def get_public_key(self) -> PublicKeyResponse:
+        """
+        Retrieve the RSA public key for encryption.
+
+        Returns:
+            PublicKeyResponse: Object containing the public key in PEM format.
+
+        Raises:
+            FileNotFoundError: If the public key file is not found.
+        """
+        if not settings.PUBLIC_KEY_PATH:
+            raise FileNotFoundError("Public key path is not configured")
+
+        with open(settings.PUBLIC_KEY_PATH, "r") as key_file:
+            public_key = key_file.read()
+
+        return PublicKeyResponse(public_key=public_key)

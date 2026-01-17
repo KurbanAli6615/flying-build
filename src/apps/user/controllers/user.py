@@ -1,11 +1,10 @@
 from typing import Annotated
-from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, Path, Request, status
+from fastapi import APIRouter, Body, Depends, Request, status
 from fastapi.responses import JSONResponse
 
 import constants
-from apps.user.schemas import BaseUserResponse
+from apps.user.schemas import BaseUserResponse, PublicKeyResponse
 from apps.user.services import UserService
 from core.auth import HasPermission
 from core.data_encrypt.schemas import EncryptedRequest
@@ -31,10 +30,10 @@ async def sign_in(
 ) -> JSONResponse:
     """
     Authenticate a user with submitted credentials and return a JSON response containing authentication data.
-    
+
     Parameters:
         body (EncryptedRequest): Encrypted wrapper of the login payload (contains email and password).
-    
+
     Returns:
         JSONResponse: Response with keys `"status"`, `"code"`, and `"data"` (authentication payload). The response includes authentication cookies set for the USER role.
     """
@@ -64,10 +63,10 @@ async def create_user(
 ) -> BaseResponse[SuccessResponse]:
     """
     Create a new user account from an encrypted request.
-    
+
     Parameters:
         body (EncryptedRequest): Encrypted request containing the fields required to create a user (equivalent to a `CreateUserRequest` payload).
-    
+
     Returns:
         BaseResponse[SuccessResponse]: The service's success result wrapped in a BaseResponse.
     """
@@ -100,24 +99,22 @@ async def get_self_handler(
 
 
 @router.get(
-    "/{user_id}",
+    "/public-key",
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(HasPermission(RoleType.USER))],
-    name="get user by id",
-    description="Get User By Id",
-    operation_id="get_user_by_id",
+    name="get public key",
+    description="Get Public Key",
+    operation_id="get_public_key",
 )
-async def get_user_by_id(
-    user_id: Annotated[UUID, Path()], service: Annotated[UserService, Depends()]
-) -> BaseResponse[BaseUserResponse]:
+async def get_public_key(
+    service: Annotated[UserService, Depends()]
+) -> BaseResponse[PublicKeyResponse]:
     """
-    Get data for a user by ID.
+    Get the RSA public key for encryption.
 
-    Args:
-        user_id (int): The ID of the user.
-        service (AuthService): The authentication service.
+    This endpoint returns the public key that clients can use to encrypt
+    data before sending it to the API.
 
     Returns:
-        dict[str, Any]: The response containing the user data.
+        BaseResponse[PublicKeyResponse]: The response containing the public key in PEM format.
     """
-    return BaseResponse(data=await service.get_user_by_id(user_id=user_id))
+    return BaseResponse(data=await service.get_public_key())
