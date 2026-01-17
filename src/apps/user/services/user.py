@@ -55,13 +55,17 @@ class UserService:
     # *======================================== Get Self ========================================
     async def get_self(self, user_id: UUID) -> BaseUserResponse:
         """
-        Retrieve user information by user ID.
-
-        Args:
-            user_id (UUID): The ID of the user.
-
+        Retrieve the current user's public profile by user ID.
+        
+        Parameters:
+            user_id (UUID): The UUID of the user to retrieve.
+        
         Returns:
-            UserModel: The user model with the user's information.
+            BaseUserResponse: Object containing id, email, name, username, country_code, phone, and role.
+        
+        Raises:
+            UserNotFoundException: If no user exists with the given ID.
+            UserNotActiveException: If the user exists but is not active.
         """
         user = await self.session.scalar(
             select(UserModel)
@@ -102,18 +106,22 @@ class UserService:
         self, request: Request, encrypted_data: str, encrypted_key: str, iv: str
     ) -> TokensResponse:
         """
-         Log in a user and generate authentication tokens.
-
-        Args:
-             request: The FastAPI request object.
-             encrypted_data (str): The encrypted data containing the login credentials.
-             encrypted_key (str): The encrypted key used to encrypt the data.
-             iv (str): The initialization vector used to encrypt the data.
-         Returns:
-             dict[str, str]: A dictionary containing the authentication tokens.
-
-         Raises:
-             InvalidCredentialsException: If the login credentials are invalid.
+        Authenticate a user from RSA-encrypted credentials and return issued authentication tokens.
+        
+        Decrypts the provided payload to obtain email and password, validates presence of both fields, verifies credentials, and returns the generated tokens.
+        
+        Parameters:
+            encrypted_data (str): RSA-encrypted JSON payload containing `email` and `password`.
+            encrypted_key (str): RSA-encrypted key used to encrypt the payload.
+            iv (str): Initialization vector used during encryption.
+        
+        Returns:
+            TokensResponse: Contains issued authentication tokens (e.g., `access_token` and `refresh_token`).
+        
+        Raises:
+            EmailRequiredException: If the decrypted payload does not include an email.
+            PasswordRequiredException: If the decrypted payload does not include a password.
+            InvalidCredentialsException: If no matching user is found or the password is incorrect.
         """
 
         decrypted_data = await decrypt(
@@ -156,23 +164,21 @@ class UserService:
         self, request: Request, encrypted_data: str, encrypted_key: str, iv: str
     ) -> SuccessResponse:
         """
-        Create a new user.
-
-        Args:
-            email (EmailStr): The user's email address.
-            password (str): The user's password.
-            name (str): The user's name.
-            username (str): The user's username.
-            country_code (str): The user's country code.
-            phone (str): The user's phone number.
-            is_active (bool): The user's active status.
-            role (RoleType): The user's role.
-
+        Create a new user account from RSA-encrypted payload and return a success message.
+        
+        Parameters:
+            request (Request): FastAPI request object containing the application's RSA key at request.app.state.rsa_key.
+            encrypted_data (str): RSA-encrypted JSON payload containing user fields (`name`, `username`, `country_code`, `phone`, `email`, `password`).
+            encrypted_key (str): Encrypted symmetric key used to decrypt `encrypted_data`.
+            iv (str): Initialization vector for symmetric decryption.
+        
         Returns:
-            UserModel: The created user model.
-
+            SuccessResponse: Response containing a success message indicating the user was created.
+        
         Raises:
-            DuplicateEmailException: If a user with the given email already exists.
+            DuplicateEmailException: If a user with the provided email already exists.
+            InvalidNameException, InvalidUserNameException, InvalidCountryCodeException, InvalidPhoneFormatException, InvalidEmailException, WeakPasswordException:
+                If any of the corresponding input validations fail during field validation.
         """
         decrypted_data = await decrypt(
             rsa_key=request.app.state.rsa_key,
@@ -232,18 +238,18 @@ class UserService:
         password: str,
     ):
         """
-        Validate the input fields of the user.
-
-        Args:
-            name (str): The user's  name.
-            username (str): The user's username.
-            country_code (str): The user's country code.
-            phone (str): The user's phone number.
-            email (str): The user's email address.
-            password (str): The user's password.
-
+        Validate user signup input fields and raise specific exceptions for any invalid value.
+        
+        Each argument is checked against the service's required format or policy and a
+        corresponding exception is raised when validation fails.
+        
         Raises:
-            ValueError: If any of the fields are invalid.
+            InvalidNameException: If `name` does not match the required name pattern.
+            InvalidUserNameException: If `username` does not match the required username pattern.
+            InvalidCountryCodeException: If `country_code` does not match the required country code pattern.
+            InvalidPhoneFormatException: If `phone` does not match the required phone number format.
+            InvalidEmailException: If `email` does not match the required email format.
+            WeakPasswordException: If `password` does not satisfy the configured strength requirements.
         """
 
         if not re.search(NAME, name, re.I):

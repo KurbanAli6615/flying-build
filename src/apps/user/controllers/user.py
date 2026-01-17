@@ -30,14 +30,13 @@ async def sign_in(
     service: Annotated[UserService, Depends()],
 ) -> JSONResponse:
     """
-    Log in a user using email and password.
-
-    Args:
-        body (UserLoginRequest): The request object containing login information.
-        service (AuthService): The authentication service.
-
+    Authenticate a user with submitted credentials and return a JSON response containing authentication data.
+    
+    Parameters:
+        body (EncryptedRequest): Encrypted wrapper of the login payload (contains email and password).
+    
     Returns:
-        Response: The response with authentication cookies set.
+        JSONResponse: Response with keys `"status"`, `"code"`, and `"data"` (authentication payload). The response includes authentication cookies set for the USER role.
     """
 
     res = await service.login_user(request=request, **body.model_dump())
@@ -64,14 +63,13 @@ async def create_user(
     service: Annotated[UserService, Depends()],
 ) -> BaseResponse[SuccessResponse]:
     """
-    Create a new user.
-
-    Args:
-        body (CreateUserRequest): The request object containing user information.
-        service (AuthService): The authentication service.
-
+    Create a new user account from an encrypted request.
+    
+    Parameters:
+        body (EncryptedRequest): Encrypted request containing the fields required to create a user (equivalent to a `CreateUserRequest` payload).
+    
     Returns:
-        BaseResponse[BaseUserResponse]: The response containing the created user information.
+        BaseResponse[SuccessResponse]: The service's success result wrapped in a BaseResponse.
     """
     response = await service.create_user(request=request, **body.model_dump())
     return BaseResponse(data=response)
