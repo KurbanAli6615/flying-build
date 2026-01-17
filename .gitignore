@@ -6,3 +6,5 @@ megalinter-reports
 redis_ca.pem
 public_key.pem
 private_key.pem
+.env.*
+*.pem
