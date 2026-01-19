@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
 from typing import Annotated, Any, Literal
+from uuid import UUID
 
-from fastapi import Cookie, Depends, Request
+from fastapi import Cookie, Depends, Path, Request
 from fastapi.openapi.models import HTTPBearer
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.security import HTTPBearer as HTTPBearerSecurity
@@ -12,11 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
 import constants.messages as constants
+from apps.team.exception import UnauthorizedTeamAccess
 from config import settings
 from core.db import db_session
 from core.exceptions import InvalidJWTTokenException, UnauthorizedError
-from core.types import RoleType
-from models import UserModel
+from core.types import RoleType, TeamRole
+from models import TeamMemberModel, UserModel
 
 
 class JWToken(SecurityBase):
@@ -252,3 +254,57 @@ class AdminHasPermission:
         if not user or user.role != RoleType.ADMIN:
             raise UnauthorizedError(message=constants.UNAUTHORIZED)
         return user
+
+
+class HasTeamPermission:
+    """
+    A Dependency Injection class that checks team membership and role.
+
+    This class verifies that a user is a member of a team and optionally
+    checks if they have one of the required roles.
+    """
+
+    def __init__(self, required_roles: list[TeamRole] | None = None) -> None:
+        """
+        Initialize the HasTeamPermission object.
+
+        Args:
+            required_roles (list[TeamRole] | None): List of roles that are
+                allowed. If None, any team member is allowed.
+        """
+        self.required_roles = required_roles or []
+
+    async def __call__(
+        self,
+        team_id: Annotated[UUID, Path()],
+        session: Annotated[AsyncSession, Depends(db_session)],
+        user: Annotated[UserModel, Depends(HasPermission(RoleType.USER))],
+    ) -> TeamMemberModel:
+        """
+        Check team membership and role.
+
+        Args:
+            team_id (UUID): The ID of the team.
+            session (AsyncSession): The database session.
+            user (UserModel): The authenticated user.
+
+        Returns:
+            TeamMemberModel: The team membership record with role information.
+
+        Raises:
+            UnauthorizedTeamAccess: If the user is not a team member or
+                doesn't have the required role.
+        """
+        team_member = await session.scalar(
+            select(TeamMemberModel).where(
+                TeamMemberModel.team_id == team_id, TeamMemberModel.user_id == user.id
+            )
+        )
+
+        if not team_member:
+            raise UnauthorizedTeamAccess
+
+        if self.required_roles and team_member.role not in self.required_roles:
+            raise UnauthorizedTeamAccess
+
+        return team_member

@@ -6,4 +6,4 @@ NAME = r"^\S+\S$"
 
 COUNTRY_CODE = r"^\+[0-9]{1,4}$"
 
-USERNAME = r"^[a-zA-Z0-9]{4,20}$"
+USERNAME = r"^[a-zA-Z0-9._]{4,20}$"

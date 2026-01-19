@@ -16,6 +16,22 @@ class DuplicateEmailException(CustomException):
     message = constants.DUPLICATE_EMAIL
 
 
+class DuplicatePhoneException(CustomException):
+    """
+    Custom exception for phone number duplication.
+    """
+
+    message = constants.DUPLICATE_PHONE
+
+
+class DuplicateUsernameException(CustomException):
+    """
+    Custom exception for username duplication.
+    """
+
+    message = constants.DUPLICATE_USERNAME
+
+
 class InvalidCredentialsException(UnauthorizedError):
     """
     Custom exception to show a generic error message.

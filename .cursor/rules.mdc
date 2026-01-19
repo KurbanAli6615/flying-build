@@ -1,0 +1,620 @@
+---
+alwaysApply: true
+---
+
+
+This is a FastAPI-based REST API project using async SQLAlchemy, PostgreSQL, Redis, and following a modular architecture pattern. The project uses Poetry for dependency management and follows strict type checking and documentation standards.
+
+## Technology Stack
+- **Framework**: FastAPI 0.115.6
+- **Database**: PostgreSQL with SQLAlchemy 2.0.37 (async)
+- **ORM**: SQLAlchemy with async support
+- **Migrations**: Alembic 1.14.0
+- **Validation**: Pydantic with custom CamelCase models
+- **Authentication**: JWT tokens (access, refresh, admin tokens)
+- **Caching**: Redis
+- **Task Scheduling**: APScheduler
+- **Logging**: Structlog
+- **Error Tracking**: Sentry
+- **Code Quality**: Black, isort, Ruff, Interrogate
+
+## Project Structure
+
+### Directory Organization
+```
+src/
+├── apps/                    # Feature modules (domain-driven)
+│   ├── {feature_name}/      # Each feature module
+│   │   ├── controller/      # FastAPI route handlers
+│   │   ├── services/        # Business logic layer
+│   │   ├── models/          # SQLAlchemy database models
+│   │   ├── schemas/         # Pydantic request/response models
+│   │   └── exception.py     # Module-specific exceptions
+│   ├── admin/               # Admin-specific features
+│   └── server.py            # FastAPI app initialization
+├── core/                    # Core utilities and shared code
+│   ├── auth.py              # Authentication & authorization
+│   ├── db.py                # Database configuration
+│   ├── exceptions.py        # Base exception classes
+│   ├── middleware/          # Custom middleware
+│   ├── utils/               # Utility functions
+│   └── external_service_client/  # External API clients
+├── constants/               # Application constants
+│   ├── config.py            # Configuration constants
+│   └── messages.py          # Error/success messages
+├── config.py                # Settings and environment config
+└── migrations/              # Alembic database migrations
+```
+
+## Naming Conventions
+
+### Files and Directories
+- Use **snake_case** for all file and directory names
+- Controllers: `{feature}_controller.py` or `controller/{feature}.py`
+- Services: `{feature}_service.py` or `services/{feature}.py`
+- Models: `{feature}_model.py` or `models/{feature}.py`
+- Schemas: `{feature}_request.py`, `{feature}_response.py`, or `schemas/{feature}.py`
+- Exceptions: `exception.py` or `exceptions.py` (module-level)
+
+### Classes
+- **Models**: `{Entity}Model` (e.g., `UserModel`, `CategoryModel`)
+- **Services**: `{Entity}Service` or `{Prefix}{Entity}Service` (e.g., `UserService`, `AdminMeditationService`)
+- **Controllers/Routers**: Use descriptive names, export as `{prefix}_router` (e.g., `user_router`, `admin_auth_router`)
+- **Schemas**: 
+  - Request: `{Action}{Entity}Request` (e.g., `CreateUserRequest`, `UpdateUserRequest`)
+  - Response: `{Entity}Response` or `Get{Entity}Response` (e.g., `UserResponse`, `GetCategoryResponse`)
+- **Exceptions**: `{ErrorType}Error` or `{ErrorType}Exception` (e.g., `NotFoundError`, `InvalidJWTTokenException`)
+- **Mixins**: `{Feature}Mixin` (e.g., `TimeStampMixin`, `UUIDPrimaryKeyMixin`)
+
+### Variables and Functions
+- Use **snake_case** for variables and functions
+- Use descriptive names that indicate purpose
+- Boolean variables should start with `is_`, `has_`, `can_`, etc.
+
+## Code Patterns
+
+### Controllers (Route Handlers)
+```python
+from typing import Annotated
+from uuid import UUID
+from fastapi import APIRouter, Depends, Path, Query, status
+from fastapi_pagination import Page
+
+from apps import UserModel
+from apps.{feature}.schemas import {ResponseSchema}
+from apps.{feature}.services import {Feature}Service
+from core.auth import HasPermission
+from core.common_helpers import Default100Page
+from core.types import RoleType
+from core.utils import BaseResponse
+
+router = APIRouter(
+    prefix="/{feature}",
+    tags=["{Feature}"],
+    dependencies=[Depends(HasPermission(RoleType.USER))],  # Optional
+)
+
+@router.get(
+    "/{resource}",
+    status_code=status.HTTP_200_OK,
+    name="get {resource}",
+    description="Get {Resource}",
+    operation_id="get_{resource}",
+    response_model_exclude_none=True,  # Optional
+)
+async def get_{resource}(
+    service: Annotated[{Feature}Service, Depends()],
+    user: Annotated[UserModel, Depends(HasPermission(RoleType.USER))],
+    {param}: Annotated[UUID, Path()],
+) -> BaseResponse[{ResponseSchema}]:
+    """
+    Retrieve {resource} by ID.
+
+    Args:
+        service ({Feature}Service): The service class for business logic.
+        user (UserModel): The authenticated user.
+        {param} (UUID): The unique identifier.
+
+    Returns:
+        BaseResponse[{ResponseSchema}]: Response containing {resource} data.
+    """
+    return BaseResponse(data=await service.get_{resource}({param}, user))
+```
+
+### Services
+```python
+from typing import Annotated
+from uuid import UUID
+
+from fastapi import Depends
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import load_only
+
+from apps import {Entity}Model
+from apps.{feature}.exception import {Entity}NotFound
+from core.db import db_session
+
+
+class {Feature}Service:
+    """
+    Service class for handling {feature} operations.
+    """
+
+    def __init__(self, session: Annotated[AsyncSession, Depends(db_session)]) -> None:
+        """
+        Initialize the {Feature}Service with the database session.
+
+        Args:
+            session (AsyncSession): The database session.
+        """
+        self.session = session
+
+    async def get_{resource}(self, {param}: UUID, user: UserModel) -> {Entity}Model:
+        """
+        Retrieve {resource} by ID.
+
+        Args:
+            {param} (UUID): The unique identifier.
+            user (UserModel): The authenticated user.
+
+        Raises:
+            {Entity}NotFound: If no {resource} is found.
+
+        Returns:
+            {Entity}Model: The {resource} entity.
+        """
+        {resource} = await self.session.scalar(
+            select({Entity}Model)
+            .options(load_only({Entity}Model.id, {Entity}Model.name))
+            .where({Entity}Model.id == {param})
+        )
+
+        if not {resource}:
+            raise {Entity}NotFound
+
+        return {resource}
+```
+
+### Models
+```python
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from core.db import Base
+from core.utils.mixins import TimeStampMixin, UUIDPrimaryKeyMixin
+
+
+class {Entity}Model(Base, UUIDPrimaryKeyMixin, TimeStampMixin):
+    """
+    Model for representing {entity} information.
+
+    Attributes:
+        name (str): The {entity} name.
+        is_active (bool): Whether the {entity} is active.
+    """
+
+    __tablename__ = "{entities}"
+
+    name: Mapped[str] = mapped_column(String(200), index=True)
+    is_active: Mapped[bool] = mapped_column(server_default="False")
+```
+
+### Schemas
+```python
+from uuid import UUID
+
+from core.utils import CamelCaseModel
+
+
+class Create{Entity}Request(CamelCaseModel):
+    """
+    Create {entity} Request Schema.
+    """
+
+    name: str
+    description: str | None = None
+    is_active: bool = False
+
+
+class {Entity}Response(CamelCaseModel):
+    """
+    {Entity} Response Schema.
+    """
+
+    id: UUID
+    name: str
+    description: str | None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+```
+
+### Exceptions
+```python
+from core.exceptions import NotFoundError
+
+
+class {Entity}NotFound(NotFoundError):
+    """
+    Exception raised when {entity} is not found.
+    """
+
+    message = "{Entity} not found"
+```
+
+## Import Organization
+
+### Import Order
+1. Standard library imports
+2. Third-party imports
+3. Local application imports
+4. Relative imports (avoid when possible)
+
+### Import Style
+```python
+# Standard library
+from typing import Annotated, Optional
+from uuid import UUID
+
+# Third-party
+from fastapi import APIRouter, Depends
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+# Local imports
+from apps import UserModel
+from apps.{feature}.schemas import {RequestSchema}, {ResponseSchema}
+from apps.{feature}.services import {Feature}Service
+from core.auth import HasPermission
+from core.db import db_session
+from core.types import RoleType
+from core.utils import BaseResponse
+```
+
+## Type Hints
+
+### Always Use Type Hints
+- Use `Annotated` for FastAPI dependencies
+- Use `|` for union types (Python 3.10+), not `Union`
+- Use `Optional[T]` or `T | None` for nullable types
+- Use `list[T]` instead of `List[T]` (Python 3.9+)
+- Use `dict[str, T]` instead of `Dict[str, T]` (Python 3.9+)
+
+### Common Patterns
+```python
+# Function parameters
+async def function(
+    param: UUID,
+    optional_param: str | None = None,
+    user: Annotated[UserModel, Depends(HasPermission(RoleType.USER))],
+) -> BaseResponse[ResponseSchema]:
+    pass
+
+# Service initialization
+def __init__(self, session: Annotated[AsyncSession, Depends(db_session)]) -> None:
+    pass
+```
+
+## Database Patterns
+
+### Session Management
+- Always use `db_session` dependency for database sessions
+- Use async context managers: `async with session.begin():`
+- Always handle rollback on exceptions
+
+### Query Patterns
+```python
+# Use select() for queries
+result = await session.scalar(
+    select(Model)
+    .options(load_only(Model.id, Model.name))  # Optimize queries
+    .where(Model.id == id)
+)
+
+# Use joinedload for relationships
+result = await session.scalar(
+    select(Model)
+    .options(joinedload(Model.relationship))
+    .where(Model.id == id)
+)
+
+# Use pagination
+from fastapi_pagination.ext.sqlalchemy import paginate
+result = await paginate(session, select(Model))
+```
+
+### Model Base Classes
+- Always inherit from `Base` (from `core.db`)
+- Use `UUIDPrimaryKeyMixin` for primary keys
+- Use `TimeStampMixin` for created_at/updated_at
+- Example: `class UserModel(Base, UUIDPrimaryKeyMixin, TimeStampMixin):`
+
+## API Response Patterns
+
+### Standard Response Format
+```python
+# Success response
+return BaseResponse(data=result)
+
+# Success message
+from core.utils.schema import SuccessResponse
+return SuccessResponse()
+
+# Paginated response
+return BaseResponse(data=Page[ResponseSchema])
+```
+
+### Response Models
+- Always use `BaseResponse[T]` for API responses
+- Use `CamelCaseModel` as base for all schemas
+- Response fields are automatically converted to camelCase
+
+## Authentication & Authorization
+
+### User Authentication
+```python
+from core.auth import HasPermission
+from core.types import RoleType
+
+# In route handler
+user: Annotated[UserModel, Depends(HasPermission(RoleType.USER))]
+
+# In router
+router = APIRouter(
+    dependencies=[Depends(HasPermission(RoleType.USER))]
+)
+```
+
+### Admin Authentication
+```python
+from core.auth import AdminHasPermission
+
+# In route handler
+admin: Annotated[UserModel, Depends(AdminHasPermission())]
+```
+
+### Token Types
+- `access`: User access token
+- `refresh`: User refresh token
+- `admin_access`: Admin access token
+- `admin_refresh`: Admin refresh token
+- `image_token`: Image access token
+
+## Error Handling
+
+### Custom Exceptions
+- Inherit from `core.exceptions.CustomException`
+- Set appropriate `status_code` and `message`
+- Use specific exception classes: `NotFoundError`, `BadRequestError`, `UnauthorizedError`, etc.
+
+### Exception Pattern
+```python
+from core.exceptions import NotFoundError
+
+class EntityNotFound(NotFoundError):
+    """
+    Exception raised when entity is not found.
+    """
+    message = "Entity not found"
+```
+
+### Exception Handling
+- Exceptions are automatically handled by `apps.handlers`
+- Custom exceptions are caught and returned as JSON responses
+- Always raise exceptions, don't return error responses directly
+
+## Documentation
+
+### Docstrings
+- **Required** for all classes and public methods
+- Use Google-style docstrings
+- Include Args, Returns, and Raises sections
+- Use `interrogate` to ensure 100% coverage
+
+### Docstring Format
+```python
+def function(param: Type) -> ReturnType:
+    """
+    Brief description of the function.
+
+    Longer description if needed, explaining what the function does,
+    any important details, or usage examples.
+
+    Args:
+        param (Type): Description of the parameter.
+
+    Returns:
+        ReturnType: Description of the return value.
+
+    Raises:
+        ExceptionType: When and why this exception is raised.
+    """
+    pass
+```
+
+## Code Quality Standards
+
+### Formatting
+- **Line length**: 89 characters (configured in `pyproject.toml`)
+- Use **Black** for code formatting
+- Use **isort** with Black profile for import sorting
+- Run `black .` and `isort .` before committing
+
+### Linting
+- Use **Ruff** for linting (line length: 89)
+- Fix all linting errors before committing
+- Use type hints everywhere
+
+### Type Checking
+- Use type hints for all function parameters and return types
+- Use `mypy` or similar for type checking
+- Avoid `Any` type when possible
+
+## Testing
+
+### Test Structure
+- Place tests in `tests/` directory
+- Mirror the `src/` structure
+- Use `pytest` and `pytest-asyncio` for async tests
+
+### Test Naming
+- Test files: `test_{module}.py`
+- Test functions: `test_{feature}_{scenario}`
+
+## Environment Configuration
+
+### Settings
+- All settings in `src/config.py`
+- Use `pydantic-settings` for configuration
+- Environment variables loaded from `.env`
+- Use `settings` singleton instance
+
+### Environment Variables
+- Prefix with module name (e.g., `DATABASE_URL`, `JWT_SECRET_KEY`)
+- Use type hints in Settings class
+- Validate with Pydantic validators
+
+## Migration Patterns
+
+### Alembic Migrations
+- Use Alembic for database migrations
+- Migrations in `src/migrations/versions/`
+- Always review generated migrations
+- Test migrations on development database first
+
+### Migration Naming
+- Format: `{revision}_{description}.py`
+- Use descriptive names
+
+## Common Utilities
+
+### Helpers
+- `core.common_helpers`: Shared helper functions
+- `core.utils.schema`: Base response classes
+- `core.utils.logger`: Structured logging
+- `core.utils.redis`: Redis client utilities
+
+### Constants
+- Application constants in `constants/config.py`
+- Messages in `constants/messages.py`
+- Use constants instead of magic strings/numbers
+
+## Best Practices
+
+### General
+1. **Always use async/await** for database operations
+2. **Use dependency injection** for services and database sessions
+3. **Keep controllers thin** - move business logic to services
+4. **Use type hints everywhere**
+5. **Write comprehensive docstrings**
+6. **Handle errors explicitly** with custom exceptions
+7. **Use pagination** for list endpoints
+8. **Optimize queries** with `load_only()` and `joinedload()`
+9. **Use constants** instead of magic values
+10. **Follow the existing patterns** in the codebase
+
+### Performance
+- Use `load_only()` to fetch only needed columns
+- Use `joinedload()` for eager loading relationships
+- Use Redis for caching when appropriate
+- Use database indexes for frequently queried fields
+
+### Security
+- Always validate input with Pydantic schemas
+- Use JWT tokens for authentication
+- Check permissions in route handlers
+- Never expose sensitive data in responses
+- Use environment variables for secrets
+
+### Code Organization
+- Keep related code together (feature modules)
+- Separate concerns (controllers, services, models)
+- Use dependency injection for testability
+- Follow single responsibility principle
+
+## Common Patterns to Follow
+
+### Adding a New Feature Module
+1. Create directory structure: `apps/{feature}/`
+2. Create `controller/`, `services/`, `models/`, `schemas/` directories
+3. Create `exception.py` for module-specific exceptions
+4. Create `__init__.py` files for proper imports
+5. Register router in `apps/server.py`
+6. Create Alembic migration if needed
+
+### Adding a New Endpoint
+1. Define request/response schemas in `schemas/`
+2. Add service method in `services/`
+3. Add route handler in `controller/`
+4. Register route in router
+5. Add authentication/authorization if needed
+6. Write docstring for the endpoint
+
+### Adding a New Model
+1. Create model class inheriting from `Base`, `UUIDPrimaryKeyMixin`, `TimeStampMixin`
+2. Define table name with `__tablename__`
+3. Use `Mapped` and `mapped_column` for columns
+4. Add relationships if needed
+5. Create Alembic migration
+6. Export from `apps/__init__.py` if needed
+
+## Things to Avoid
+
+1. ❌ Don't use synchronous database operations
+2. ❌ Don't put business logic in controllers
+3. ❌ Don't use magic numbers or strings
+4. ❌ Don't skip type hints
+5. ❌ Don't skip docstrings
+6. ❌ Don't use `Any` type unnecessarily
+7. ❌ Don't ignore linting errors
+8. ❌ Don't commit without running formatters
+9. ❌ Don't expose sensitive data in responses
+10. ❌ Don't create circular imports
+
+## Quick Reference
+
+### Common Imports
+```python
+# FastAPI
+from fastapi import APIRouter, Depends, Path, Query, status
+from fastapi_pagination import Page
+
+# Database
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import load_only, joinedload
+
+# Core
+from core.auth import HasPermission, AdminHasPermission
+from core.db import db_session, Base
+from core.exceptions import NotFoundError, BadRequestError
+from core.types import RoleType
+from core.utils import BaseResponse, CamelCaseModel
+from core.utils.mixins import UUIDPrimaryKeyMixin, TimeStampMixin
+
+# Apps
+from apps import UserModel
+```
+
+### Common Patterns
+```python
+# Router
+router = APIRouter(prefix="/feature", tags=["Feature"])
+
+# Dependency injection
+service: Annotated[Service, Depends()]
+session: Annotated[AsyncSession, Depends(db_session)]
+user: Annotated[UserModel, Depends(HasPermission(RoleType.USER))]
+
+# Response
+return BaseResponse(data=result)
+return BaseResponse(data=await service.method())
+
+# Query
+result = await session.scalar(select(Model).where(Model.id == id))
+```
+
+---
+
+**Remember**: When in doubt, look at existing code in the project for examples of similar functionality. Consistency is key!

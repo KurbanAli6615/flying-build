@@ -10,6 +10,8 @@ from cryptography.hazmat.primitives import padding as crypto_padding
 from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import constants
 from apps.user.exceptions import (
@@ -22,12 +24,13 @@ from config import settings
 from core.auth import access, admin_access, admin_refresh, refresh
 from core.exceptions import InvalidRoleException
 from core.types import RoleType
+from models import TeamModel
 
 
 async def create_password():
     """
     Generate a URL-safe random password.
-    
+
     Returns:
         str: A URL-safe random string suitable for use as a password.
     """
@@ -37,14 +40,14 @@ async def create_password():
 async def create_tokens(user_id: UUID, role: RoleType) -> TokensResponse:
     """
     Create access and refresh tokens for a user based on their role.
-    
+
     Parameters:
         user_id (UUID): The user's unique identifier to embed in token payloads.
         role (RoleType): The user's role; determines which encoder pair (user or admin) is used.
-    
+
     Returns:
         TokensResponse: An object containing `access_token` and `refresh_token` strings.
-    
+
     Raises:
         InvalidRoleException: If `role` is not `RoleType.USER` or `RoleType.ADMIN`.
     """
@@ -71,13 +74,13 @@ async def create_tokens(user_id: UUID, role: RoleType) -> TokensResponse:
 def validate_string_fields(values) -> dict:
     """
     Ensure string values in a mapping are not empty.
-    
+
     Parameters:
         values (Mapping[str, Any]): Mapping of field names to their values to validate.
-    
+
     Returns:
         dict: The original mapping of values.
-    
+
     Raises:
         EmptyDescriptionException: If any value is a string that is empty or contains only whitespace.
     """
@@ -149,3 +152,32 @@ def validate_email(email: str) -> str | None:
         raise InvalidEmailException
 
     return email
+
+
+async def generate_team_code(session: AsyncSession) -> str:
+    """
+    Generate a unique team code.
+
+    Generates a URL-safe random team code and ensures it's unique in the
+    database. Retries up to 3 times if a collision occurs.
+
+    Args:
+        session (AsyncSession): Database session to check for uniqueness.
+
+    Returns:
+        str: A unique team code.
+
+    Raises:
+        TeamAlreadyExists: If unable to generate a unique code after 3 attempts.
+    """
+    from apps.team.exception import TeamAlreadyExists
+
+    max_attempts = 3
+    for _ in range(max_attempts):
+        team_code = secrets.token_urlsafe(8)
+        existing_team = await session.scalar(
+            select(TeamModel).where(TeamModel.team_code == team_code)
+        )
+        if not existing_team:
+            return team_code
+    raise TeamAlreadyExists
